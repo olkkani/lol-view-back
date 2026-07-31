@@ -1,5 +1,6 @@
-#
+# https://plugins.gradle.org/
 [versions]
+# Plguin verisons
 kotlin = "2.3.21"
 ksp = "2.3.9"
 ktlint = "14.2.0"
@@ -25,7 +26,7 @@ flyway = "12.4.0"
 testcontainer = "2.0.5" # See spring-boot-testcontainers and sync spring version
 jjwt = "0.12.6"
 postgresql = "42.7.11"
-
+jooq-docker = "8.0.30"
 [libraries]
 # kotlin
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
@@ -123,7 +124,7 @@ dependency-management = { id = "io.spring.dependency-management", version.ref = 
 #osdetector = { id = "com.google.osdetector", version.ref = "osDetector" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 #jooq = { id = "nu.studer.jooq", version = "10.1" }
-jooq-monosoul = { id = "dev.monosoul.jooq-docker", version = "7.0.9" }
+jooq-monosoul = { id = "dev.monosoul.jooq-docker", version.ref = "jooq-docker" }
 #
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
