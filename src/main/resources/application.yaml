@@ -58,6 +58,9 @@ spring:
     locations: classpath:db/migration
   docker:
     compose:
+      # explicit restatement of the 4.1.0 default: container is stopped (not removed)
+      # on JVM exit, kept for fast restarts. See compose.yaml comment for the
+      # data-reuse tradeoff this implies.
       lifecycle-management: start-and-stop
 #redis:
 #  host: localhost
@@ -78,6 +81,9 @@ spring:
     url: ${DB_CONNECTION_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+  docker:
+    compose:
+      enabled: false
 decorator:
   datasource:
     p6spy:

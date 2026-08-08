@@ -1,3 +1,8 @@
+# Managed by spring-boot-docker-compose (spring.docker.compose.lifecycle-management: start-and-stop,
+# configured in application.yaml's persistence-local profile).
+# The postgres container is stopped, not removed, when the app exits — data
+# (including flyway_schema_history) persists across a normal restart.
+# For a fully clean slate: docker compose rm -f postgres
 services:
   postgres:
     image: postgres:17
