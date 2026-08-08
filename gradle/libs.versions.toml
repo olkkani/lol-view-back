@@ -82,7 +82,7 @@ testcontainer-postgresql = { module = "org.testcontainers:testcontainers-postgre
 kotlin-logging = { module = "io.github.oshai:kotlin-logging", version = "7.0.0" }
 p6spy = { module = "com.github.gavlyukovskiy:p6spy-spring-boot-starter", version.ref = "p6spy" }
 spring-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "spring-security-test" }
-spring-boot-h2 = { module = "org.springframework.boot:spring-boot-h2console", version.ref = "spring-boot"}
+spring-docker-compose = { module = "org.springframework.boot:spring-boot-docker-compose", version.ref = "spring-boot" }
 reactor-test = { module = "io.projectreactor:reactor-test", version = "3.7.4" }
 embedded-redis = { module = "com.github.codemonstur:embedded-redis", version = "1.4.3" }
 tsid = { module = "io.hypersistence:hypersistence-tsid", version.ref = "tsid"}
@@ -109,7 +109,7 @@ spring-security = ["spring-security", "spring-validation"]
 jjwt = ["jjwt-impl", "jjwt-jackson"]
 persistence = ["spring-jpa", "hibernate-utils", "spring-flyway", "flyway-postgresql", "jooq", "spring-jooq", "jooq-codgen", "tsid"]
 persistence-database = ["postgresql"]
-persistence-database-embedded = ["spring-boot-h2"]
+persistence-database-embedded = ["spring-docker-compose"]
 persistence-test-testcontainer = ["spring-testcontainer", "testcontainer", "testcontainer-postgresql"]
 
 [plugins]
