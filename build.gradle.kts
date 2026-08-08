@@ -8,7 +8,6 @@ plugins {
     alias(libs.plugins.kotlin.jpa)
     alias(libs.plugins.jooq.monosoul)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.detekt)
 }
 
 group = "io.olkkani"
@@ -47,7 +46,6 @@ dependencies {
     implementation(libs.p6spy)
     testImplementation(libs.bundles.persistence.test.testcontainer)
     developmentOnly(libs.bundles.persistence.database.embedded)
-    ksp("org.springframework.boot:spring-boot-configuration-processor")
     jooqCodegen(libs.postgresql)
 //    implementation("org.springframework.boot:spring-boot-starter-batch")
 //    implementation("org.springframework.boot:spring-boot-starter-data-rest")
