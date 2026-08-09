@@ -42,7 +42,8 @@ CREATE TABLE "leagues"
     "league_name"     varchar,
     "league_logo_url" varchar,
     "is_active"       boolean,
-    "league_api_id"   varchar
+    "league_api_id"   varchar,
+    "league_cycle"    varchar
 );
 
 CREATE TABLE "tournaments"
@@ -92,8 +93,8 @@ CREATE TABLE "league_recurrence_windows"
     "label"                 varchar,
     "sequence_order"        integer,
     "league_id"             BIGINT,
-    "interval_years"        integer,
-    "last_known_start_date" date
+    "interval_year"         integer,
+    "start_date"            date
 );
 
 ALTER TABLE "club_profiles"
