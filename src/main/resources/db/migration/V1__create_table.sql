@@ -93,7 +93,7 @@ CREATE TABLE "league_recurrence_windows"
     "sequence_order"        integer,
     "league_id"             BIGINT,
     "interval_years"        integer,
-    "last_known_start_date" date
+    "start_date"            date
 );
 
 ALTER TABLE "club_profiles"

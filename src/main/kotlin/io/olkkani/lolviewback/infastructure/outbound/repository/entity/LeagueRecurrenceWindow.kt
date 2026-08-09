@@ -2,8 +2,6 @@ package io.olkkani.lolviewback.infastructure.outbound.repository.entity
 
 import io.hypersistence.utils.hibernate.id.Tsid
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
@@ -16,10 +14,8 @@ class LeagueRecurrenceWindow(
     var label: String,
     var sequenceOrder: Int,
     var intervalYear: Int,
-    var lastKnownStartDate: LocalDate,
+    var startDate: LocalDate,
 
     @ManyToOne @JoinColumn(name = "league_id")
     var league: League,
-) {
-
-}
+)
