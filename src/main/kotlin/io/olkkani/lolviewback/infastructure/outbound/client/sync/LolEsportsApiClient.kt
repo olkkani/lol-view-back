@@ -5,9 +5,12 @@ import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.MatchApiRes
 import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.MatchApiResponseWrapper
 import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.TournamentApiResponseWrapper
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBody
+import reactor.netty.http.client.HttpClient
+import java.time.Duration
 
 /**
  * WebClient-based client for esports-api.lolesports.com's tournament/schedule endpoints.
@@ -24,7 +27,8 @@ class LolEsportsApiClient(
     private val properties: LolApiProperties,
     webClientBuilder: WebClient.Builder,
 ) {
-    private val webClient = webClientBuilder.build()
+    private val httpClient = HttpClient.create().responseTimeout(Duration.ofSeconds(10))
+    private val webClient = webClientBuilder.clientConnector(ReactorClientHttpConnector(httpClient)).build()
 
     suspend fun fetchTournaments(leagueApiId: String): List<TournamentApiResponse> {
         val wrapper =
