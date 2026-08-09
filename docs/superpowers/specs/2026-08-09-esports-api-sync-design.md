@@ -32,7 +32,9 @@ Tournament 조회는 `league_recurrence_windows` 테이블(`interval_years`, 기
 
 "이미 Tournament가 존재하면 스킵"이라는 단순 규칙은 LCK처럼 1년에 여러 번(Spring/Summer 등) 열리는 리그를 놓친다. 따라서 스킵 판단은 "해당 League에 Tournament가 하나라도 있는가"가 아니라, "**해당 주기(회차)**에 대응하는 Tournament가 이미 있는가"여야 한다. 이번 구현에서는 `league_recurrence_windows`의 `sequence_order`/`label`(예: Spring, Summer)을 주기 구분 단위로 사용한다.
 
-Tournament를 새로 저장할 때 해당 window의 기준 날짜 컬럼을 그 새 Tournament의 `end_date` 값으로 갱신한다 — 즉 "다음 조회를 언제부터 시도할지"의 기준점은 "마지막으로 확인된 Tournament의 종료일"이다.
+Tournament를 새로 저장할 때 해당 window의 기준 날짜 컬럼을 그 새 Tournament의 `start_date` 값으로 갱신한다 — 즉 "다음 조회를 언제부터 시도할지"의 기준점은 "마지막으로 확인된 Tournament의 시작일"이다.
+
+**(구현 중 정정, Task 6 검증 결과 반영)**: 최초 설계는 `end_date`로 갱신하는 것으로 정했으나, 구현 단계(Task 6, `TournamentDueChecker`)에서 이 값이 "window가 어느 계절(Spring/Summer 등)에 속하는지"를 판단하는 앵커로도 재사용된다는 게 드러났다. `end_date`는 대회마다 시작일로부터 몇 달 뒤이므로, 매 회차 갱신할 때마다 window의 "계절 위치"가 조금씩 밀린다 — 실제 LCK류 다회차 리그를 여러 해에 걸쳐 시뮬레이션한 결과 4번째 대회쯤부터 서로 다른 window의 계절 앵커가 수렴/역전되어 매칭이 틀어지는 것을 확인했다. `start_date`로 갱신하면 대회의 시작 월/일이 매년 거의 같은 자리로 되돌아오므로 이 드리프트가 발생하지 않는다(15년치 시뮬레이션으로 검증). 이 갱신 값은 "다음 조회 시도 시점" 판단(`isWindowDue`/`isWindowOverdue`)에는 영향이 없다 — 그쪽은 경과 시간만 보기 때문이다. `start_date`/`end_date` 표기가 window 매칭에 미치는 영향을 이후에 다시 바꾸려면, `TournamentDueChecker`의 매칭 로직도 함께 재검토해야 한다.
 
 **스키마 변경**: `league_recurrence_windows.last_known_start_date` 컬럼은 이름과 달리 실제로는 Tournament의 `end_date`가 저장되므로, 컬럼명을 **`start_date`로 변경**한다 (마이그레이션에서 `start_date`로 리네임하고, 실제 의미는 "다음 조회 시도를 시작할 기준 날짜"로 통일). 엔티티 필드명(`lastKnownStartDate` → `startDate`)도 함께 변경한다. 프로젝트가 아직 실서비스 전이고 마이그레이션 히스토리가 `V1__create_table.sql` 하나뿐이므로, 새 버전 마이그레이션을 추가하지 않고 **V1 파일을 직접 수정**한다.
 

@@ -1175,7 +1175,7 @@ class TournamentSyncScheduler(
 
                     val matchingWindow = TournamentDueChecker.findMatchingWindow(windows, savedTournament.startDate)
                     if (matchingWindow != null) {
-                        matchingWindow.startDate = savedTournament.endDate
+                        matchingWindow.startDate = savedTournament.startDate
                         windowRepository.save(matchingWindow)
                     } else {
                         log.warn(
@@ -1355,7 +1355,7 @@ SELECT * FROM tournaments WHERE league_id = 1;
 SELECT * FROM league_recurrence_windows WHERE id = 1;
 ```
 
-Expected: `tournaments`에 새 로우가 생겼고, `league_recurrence_windows.start_date`가 그 Tournament의 `end_date`로 갱신되어 있어야 한다(Task 8의 write-back 로직 검증).
+Expected: `tournaments`에 새 로우가 생겼고, `league_recurrence_windows.start_date`가 그 Tournament의 `start_date`로 갱신되어 있어야 한다(Task 8의 write-back 로직 검증 — Task 6에서 드리프트 문제로 `end_date` 대신 `start_date`로 확정됨).
 
 - [ ] **Step 5: 재실행 후 중복 없는지 확인**
 
