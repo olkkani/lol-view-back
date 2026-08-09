@@ -218,4 +218,68 @@ class TournamentDueCheckerTest {
         assertEquals(springWindow, matchedForSpringTournament)
         assertEquals(summerWindow, matchedForSummerTournament)
     }
+
+    @Test
+    fun `findMatchingWindow matches correctly when tournament start date falls a few days before the window's day-of-month`() {
+        val league = league()
+        // springWindow's recorded day (15th) is AFTER the tournament's day (10th) in the same
+        // month. A naive "nearest anniversary on or before" search would snap a full year back
+        // to 2024-01-15 (11 months away) instead of recognizing 2025-01-10 is only 5 days after
+        // 2025-01-15's neighboring occurrence -- i.e. essentially the same season.
+        val springWindow = LeagueRecurrenceWindow(
+            label = "Spring",
+            sequenceOrder = 1,
+            intervalYear = 1,
+            startDate = LocalDate.of(2024, 1, 15),
+            league = league,
+        )
+        val summerWindow = LeagueRecurrenceWindow(
+            label = "Summer",
+            sequenceOrder = 2,
+            intervalYear = 1,
+            startDate = LocalDate.of(2024, 6, 1),
+            league = league,
+        )
+
+        val matched = TournamentDueChecker.findMatchingWindow(
+            windows = listOf(springWindow, summerWindow),
+            tournamentStartDate = LocalDate.of(2025, 1, 10),
+        )
+
+        assertEquals(springWindow, matched)
+    }
+
+    @Test
+    fun `findMatchingWindow breaks ties deterministically using sequenceOrder`() {
+        val league = league()
+        // Two windows placed symmetrically around the tournament's date, so both are equidistant
+        // in circular month-distance. The lower sequenceOrder should win regardless of list order.
+        val firstWindow = LeagueRecurrenceWindow(
+            label = "A",
+            sequenceOrder = 1,
+            intervalYear = 1,
+            startDate = LocalDate.of(2024, 1, 1),
+            league = league,
+        )
+        val secondWindow = LeagueRecurrenceWindow(
+            label = "B",
+            sequenceOrder = 2,
+            intervalYear = 1,
+            startDate = LocalDate.of(2024, 1, 31),
+            league = league,
+        )
+        val tournamentStartDate = LocalDate.of(2025, 1, 16)
+
+        val matchedInOrder = TournamentDueChecker.findMatchingWindow(
+            windows = listOf(firstWindow, secondWindow),
+            tournamentStartDate = tournamentStartDate,
+        )
+        val matchedReverseOrder = TournamentDueChecker.findMatchingWindow(
+            windows = listOf(secondWindow, firstWindow),
+            tournamentStartDate = tournamentStartDate,
+        )
+
+        assertEquals(firstWindow, matchedInOrder)
+        assertEquals(firstWindow, matchedReverseOrder)
+    }
 }

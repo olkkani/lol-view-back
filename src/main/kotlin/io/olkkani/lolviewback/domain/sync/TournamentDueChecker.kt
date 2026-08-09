@@ -3,7 +3,6 @@ package io.olkkani.lolviewback.domain.sync
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueRecurrenceWindow
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
 import java.time.LocalDate
-import java.time.Period
 import java.time.YearMonth
 
 object TournamentDueChecker {
@@ -29,26 +28,33 @@ object TournamentDueChecker {
         windows: List<LeagueRecurrenceWindow>,
         tournamentStartDate: LocalDate,
     ): LeagueRecurrenceWindow? {
-        // Match each window's most recent recurrence anniversary (same month/day, on or before
-        // tournamentStartDate) and pick whichever window's anniversary is closest. A plain
-        // "latest window.startDate <= tournamentStartDate" comparison is WRONG here: an older
-        // window (e.g. Spring, started 2024-01-01) can still be the correct match for a later
-        // tournament (e.g. one starting 2025-01-10) even though a newer window (e.g. Summer,
-        // started 2024-06-01) has a startDate that is chronologically closer in absolute terms.
+        // Match by which window's recurrence "season" (month/day, independent of year) is
+        // closest to the tournament's start date, measured symmetrically in either direction
+        // around the calendar (circular month distance), not just "nearest anniversary on or
+        // before". A one-directional (backwards-only) comparison is WRONG: a tournament that
+        // starts a few days EARLIER in the year than a window's recorded day (e.g. window day
+        // 15, tournament day 10) would otherwise snap a full year further back instead of a few
+        // days forward, producing a huge false distance and picking the wrong window.
+        //
+        // Ties are broken by sequenceOrder for determinism (lower sequenceOrder wins), since
+        // otherwise input-list order would silently decide the outcome.
         return windows
-            .mapNotNull { window ->
-                val anniversary = mostRecentAnniversaryOnOrBefore(window.startDate, tournamentStartDate)
-                    ?: return@mapNotNull null
-                window to Period.between(anniversary, tournamentStartDate).let { it.years * 12 + it.months }
-            }
-            .minByOrNull { (_, monthsSinceAnniversary) -> monthsSinceAnniversary }
+            .map { window -> window to circularMonthDistance(window.startDate, tournamentStartDate) }
+            .sortedWith(compareBy({ (_, distance) -> distance }, { (window, _) -> window.sequenceOrder }))
+            .firstOrNull()
             ?.first
     }
 
-    private fun mostRecentAnniversaryOnOrBefore(windowStartDate: LocalDate, reference: LocalDate): LocalDate? {
-        val candidate = windowStartDate.withYear(reference.year)
-        val adjusted = if (candidate.isAfter(reference)) candidate.minusYears(1) else candidate
-        return if (adjusted.isBefore(windowStartDate)) null else adjusted
+    /**
+     * Distance, in months, between two dates' month/day markers, ignoring year and measured in
+     * whichever direction (forward or backward around the 12-month calendar) is shorter. E.g.
+     * Jan 1 and Dec 20 are ~1.3 months apart, not ~11 months apart.
+     */
+    private fun circularMonthDistance(a: LocalDate, b: LocalDate): Double {
+        val aPosition = a.monthValue + a.dayOfMonth / 31.0
+        val bPosition = b.monthValue + b.dayOfMonth / 31.0
+        val diff = kotlin.math.abs(aPosition - bPosition)
+        return minOf(diff, 12.0 - diff)
     }
 
     private fun expectedStart(window: LeagueRecurrenceWindow): LocalDate {
