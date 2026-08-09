@@ -282,4 +282,56 @@ class TournamentDueCheckerTest {
         assertEquals(firstWindow, matchedInOrder)
         assertEquals(firstWindow, matchedReverseOrder)
     }
+
+    @Test
+    fun `findDueWindows reports due when the only season-matching tournament predates the window's current anchor`() {
+        val league = league()
+        // The window's anchor (startDate) has already been advanced to a recent sync point
+        // (2025), reflecting the last time this window's cadence was confirmed. Older
+        // same-season tournaments (2020, 2013) also exist in history, seeded out of
+        // chronological order (newest-first, mirroring the real full-history API response).
+        // These older tournaments DO season-match this window via findMatchingWindow (same
+        // month/day), but they are NOT the tournament that satisfies the window's *current*
+        // cycle -- only a tournament at-or-after the anchor counts as "already handled".
+        //
+        // Without the recency bound, hasNewTournamentForWindow would find the 2013 (or 2020)
+        // tournament matches this window's season and incorrectly report it as satisfied
+        // forever, even after the anchor (2025) itself has gone stale and a new cycle is due.
+        val window = LeagueRecurrenceWindow(
+            label = "MSI",
+            sequenceOrder = 1,
+            intervalYear = 1,
+            startDate = LocalDate.of(2025, 5, 1),
+            league = league,
+        )
+        // Deliberately does NOT include a tournament at/after 2025-05-01 -- only stale history
+        // remains, seeded out of chronological order.
+        val existingTournaments = listOf(
+            Tournament(
+                tournamentName = "MSI 2020",
+                startDate = LocalDate.of(2020, 5, 1),
+                endDate = LocalDate.of(2020, 5, 20),
+                tournamentApiId = "msi-2020",
+                league = league,
+            ),
+            Tournament(
+                tournamentName = "MSI 2013",
+                startDate = LocalDate.of(2013, 5, 1),
+                endDate = LocalDate.of(2013, 5, 20),
+                tournamentApiId = "msi-2013",
+                league = league,
+            ),
+        )
+        // expectedStart = 2025-05-01 + 1y = 2026-05-01, long past.
+        val today = LocalDate.of(2027, 1, 1)
+
+        val dueWindows = TournamentDueChecker.findDueWindows(
+            windows = listOf(window),
+            existingTournaments = existingTournaments,
+            today = today,
+        )
+
+        assertEquals(1, dueWindows.size)
+        assertEquals(window, dueWindows[0])
+    }
 }

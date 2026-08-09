@@ -48,8 +48,13 @@ class TournamentSyncScheduler(
 
                     val matchingWindow = TournamentDueChecker.findMatchingWindow(windows, savedTournament.startDate)
                     if (matchingWindow != null) {
-                        matchingWindow.startDate = savedTournament.startDate
-                        windowRepository.save(matchingWindow)
+                        // API returns tournaments newest-first, so older tournaments are
+                        // processed after newer ones. Only advance the anchor forward — never
+                        // regress it to an older tournament's start date.
+                        if (matchingWindow.startDate.isBefore(savedTournament.startDate)) {
+                            matchingWindow.startDate = savedTournament.startDate
+                            windowRepository.save(matchingWindow)
+                        }
                     } else {
                         log.warn(
                             "New tournament {} for league {} did not match any recurrence window — start_date not advanced",

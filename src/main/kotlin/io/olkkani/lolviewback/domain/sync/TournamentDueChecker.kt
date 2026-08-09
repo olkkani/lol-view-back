@@ -66,7 +66,14 @@ object TournamentDueChecker {
         allWindows: List<LeagueRecurrenceWindow>,
         existingTournaments: List<Tournament>,
     ): Boolean {
-        return existingTournaments.any { tournament -> findMatchingWindow(allWindows, tournament.startDate) == window }
+        // A tournament only "satisfies" the window's current cycle if it is at least as
+        // recent as the window's last-known-good anchor (startDate). Without this recency
+        // bound, any tournament ever matched to this window — even one from many years ago —
+        // would count forever, since findMatchingWindow equality alone doesn't consider time.
+        return existingTournaments.any { tournament ->
+            !tournament.startDate.isBefore(window.startDate) &&
+                findMatchingWindow(allWindows, tournament.startDate) == window
+        }
     }
 
     private fun isWindowDue(
