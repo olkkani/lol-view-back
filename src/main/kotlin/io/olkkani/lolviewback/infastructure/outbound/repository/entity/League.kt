@@ -2,6 +2,8 @@ package io.olkkani.lolviewback.infastructure.outbound.repository.entity
 
 import io.hypersistence.utils.hibernate.id.Tsid
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -15,7 +17,9 @@ class League(
     var leagueName: String,
     var isActive: Boolean,
     var leagueApiId: String,
-    var leagueCycle: Enum<LeagueCycle>
+
+    @Enumerated(EnumType.STRING)
+    var leagueCycle: LeagueCycle,
 )
 
 enum class LeagueCycle {
