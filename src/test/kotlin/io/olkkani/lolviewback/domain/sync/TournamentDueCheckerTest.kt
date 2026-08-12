@@ -1,7 +1,6 @@
 package io.olkkani.lolviewback.domain.sync
 
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueCycle
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueRecurrenceWindow
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -14,9 +13,9 @@ class TournamentDueCheckerTest {
 
     private fun league() = League(
         leagueName = "MSI",
+        leagueLogoUrl = "https://example.com/msi.png",
         isActive = true,
         leagueApiId = "msi-api-id",
-        leagueCycle = LeagueCycle.ANNUAL,
     )
 
     @Test

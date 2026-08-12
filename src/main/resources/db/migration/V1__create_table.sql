@@ -1,6 +1,6 @@
 CREATE TABLE "clubs"
 (
-    "id"             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"             bigint PRIMARY KEY,
     "is_active"      boolean,
     "founded_date"   DATE,
     "disbanded_date" DATE
@@ -8,47 +8,47 @@ CREATE TABLE "clubs"
 
 CREATE TABLE "club_profiles"
 (
-    "id"             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"             bigint PRIMARY KEY,
     "club_name"      varchar,
     "abbreviation"   varchar,
     "logo_url"       varchar,
     "effective_from" DATE,
     "effective_to"   DATE,
+    "region"         varchar,
     "club_id"        bigint
 );
 
 CREATE TABLE "users"
 (
-    "id" bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+    "id" bigint PRIMARY KEY
 );
 
 CREATE TABLE "user_followed_clubs"
 (
-    "id"      bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"      bigint PRIMARY KEY,
     "user_id" bigint,
     "club_id" bigint
 );
 
 CREATE TABLE "user_followed_leagues"
 (
-    "id"        bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"        bigint PRIMARY KEY,
     "user_id"   bigint,
     "league_id" bigint
 );
 
 CREATE TABLE "leagues"
 (
-    "id"              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"              bigint PRIMARY KEY,
     "league_name"     varchar,
     "league_logo_url" varchar,
     "is_active"       boolean,
-    "league_api_id"   varchar,
-    "league_cycle"    varchar
+    "league_api_id"   varchar
 );
 
 CREATE TABLE "tournaments"
 (
-    "id"                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"                BIGINT PRIMARY KEY,
     "tournament_name"   varchar,
     "start_date"        DATE,
     "end_date"          DATE,
@@ -58,7 +58,7 @@ CREATE TABLE "tournaments"
 
 CREATE TABLE "matches"
 (
-    "id"            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"            BIGINT PRIMARY KEY,
     "start_time"    timestamp,
     "match_type"    varchar,
     "match_state"   varchar,
@@ -69,7 +69,7 @@ CREATE TABLE "matches"
 
 CREATE TABLE "match_participants"
 (
-    "id"              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    "id"              BIGINT PRIMARY KEY,
     "is_win"          boolean,
     "score"           integer,
     "match_id"        BIGINT,
@@ -77,24 +77,15 @@ CREATE TABLE "match_participants"
     "club_profile_id" BIGINT
 );
 
-CREATE TABLE "poll_schedules"
-(
-    "id"            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    "target_type"   VARCHAR,
-    "target_id"     BIGINT,
-    "status"        VARCHAR,
-    "next_check_at" timestamp,
-    "fail_count"    integer DEFAULT 0
-);
 
 CREATE TABLE "league_recurrence_windows"
 (
-    "id"                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    "label"                 varchar,
-    "sequence_order"        integer,
-    "league_id"             BIGINT,
-    "interval_year"         integer,
-    "start_date"            date
+    "id"             BIGINT PRIMARY KEY,
+    "label"          varchar,
+    "sequence_order" integer,
+    "league_id"      BIGINT,
+    "interval_year"  integer,
+    "start_date"     date
 );
 
 ALTER TABLE "club_profiles"

@@ -2,7 +2,6 @@ package io.olkkani.lolviewback.infastructure.outbound.client.sync.mapper
 
 import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.MatchApiResponse
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueCycle
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchType
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
@@ -17,9 +16,9 @@ class MatchMapperTest {
     private fun sampleTournament(): Tournament {
         val league = League(
             leagueName = "LCK",
+            leagueLogoUrl = "https://example.com/lck.png",
             isActive = true,
             leagueApiId = "league-api-1",
-            leagueCycle = LeagueCycle.MULTI_SPLIT,
         )
         return Tournament(
             tournamentName = "lck_2025_summer",

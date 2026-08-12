@@ -2,7 +2,6 @@ package io.olkkani.lolviewback.infastructure.outbound.client.sync.mapper
 
 import io.olkkani.lolviewback.infastructure.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueCycle
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
@@ -13,9 +12,9 @@ class TournamentMapperTest {
     fun `toEntity maps api response fields onto Tournament entity`() {
         val league = League(
             leagueName = "LCK",
+            leagueLogoUrl = "https://example.com/lck.png",
             isActive = true,
             leagueApiId = "league-api-1",
-            leagueCycle = LeagueCycle.MULTI_SPLIT,
         )
         val response = TournamentApiResponse(
             apiId = "tournament-api-1",
