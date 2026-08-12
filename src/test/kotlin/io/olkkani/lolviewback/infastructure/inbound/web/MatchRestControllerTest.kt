@@ -7,6 +7,9 @@ import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchClubResponse
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchResponse
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
+import jakarta.servlet.ServletException
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.TestConfiguration
@@ -62,8 +65,25 @@ class MatchRestControllerTest {
     }
 
     @Test
-    fun `GET matches with invalid range returns 400`() {
+    fun `GET matches with invalid range returns 400 with a JSON error body`() {
         mockMvc.get("/matches?range=tomorrow")
-            .andExpect { status { isBadRequest() } }
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error") { value("Unknown range: tomorrow") }
+            }
+    }
+
+    @Test
+    fun `an IllegalArgumentException from the service is not mislabelled as a 400`() {
+        val failure = IllegalArgumentException("internal failure")
+        every { matchQueryService.findMatches(MatchRange.TODAY) } throws failure
+
+        // The handler only catches InvalidMatchRangeException, so a genuine internal
+        // error propagates out of the dispatcher instead of being reported as a
+        // client-side 400. MockMvc surfaces that as the unhandled cause.
+        val thrown = assertThrows(ServletException::class.java) {
+            mockMvc.get("/matches?range=today")
+        }
+        assertEquals("internal failure", thrown.cause?.message)
     }
 }

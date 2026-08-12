@@ -1,6 +1,7 @@
 package io.olkkani.lolviewback.infastructure.inbound.web
 
 import io.olkkani.lolviewback.domain.match.MatchQueryService
+import io.olkkani.lolviewback.infastructure.inbound.web.dto.InvalidMatchRangeException
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchResponse
 import org.springframework.http.HttpStatus
@@ -20,9 +21,9 @@ class MatchRestController(
         return matchQueryService.findMatches(MatchRange.from(range))
     }
 
-    @ExceptionHandler(IllegalArgumentException::class)
+    @ExceptionHandler(InvalidMatchRangeException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    fun handleInvalidRange(ex: IllegalArgumentException): String {
-        return ex.message ?: "Invalid request"
+    fun handleInvalidRange(ex: InvalidMatchRangeException): Map<String, String> {
+        return mapOf("error" to (ex.message ?: "Invalid request"))
     }
 }

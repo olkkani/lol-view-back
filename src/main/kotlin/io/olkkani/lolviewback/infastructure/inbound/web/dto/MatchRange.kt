@@ -6,6 +6,13 @@ import java.time.ZonedDateTime
 
 private val KST: ZoneId = ZoneId.of("Asia/Seoul")
 
+/**
+ * Thrown when the `range` request parameter is not a recognised [MatchRange] value.
+ * Distinct from a bare [IllegalArgumentException] so the controller's 400 handler
+ * cannot swallow unrelated internal errors from the service/repository layers.
+ */
+class InvalidMatchRangeException(message: String) : IllegalArgumentException(message)
+
 enum class MatchRange {
     YESTERDAY,
     TODAY,
@@ -23,8 +30,8 @@ enum class MatchRange {
 
     companion object {
         fun from(value: String): MatchRange {
-            return entries.firstOrNull { it.name == value.uppercase() && it.name.lowercase() == value }
-                ?: throw IllegalArgumentException("Unknown range: $value")
+            return entries.firstOrNull { it.name.lowercase() == value }
+                ?: throw InvalidMatchRangeException("Unknown range: $value")
         }
     }
 }

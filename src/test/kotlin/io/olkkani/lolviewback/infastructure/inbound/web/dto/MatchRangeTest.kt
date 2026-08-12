@@ -21,8 +21,25 @@ class MatchRangeTest {
 
     @Test
     fun `from throws on invalid value`() {
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(InvalidMatchRangeException::class.java) {
             MatchRange.from("tomorrow")
+        }
+    }
+
+    @Test
+    fun `from throws on empty value`() {
+        assertThrows(InvalidMatchRangeException::class.java) {
+            MatchRange.from("")
+        }
+    }
+
+    @Test
+    fun `from throws on mixed-case value`() {
+        assertThrows(InvalidMatchRangeException::class.java) {
+            MatchRange.from("Today")
+        }
+        assertThrows(InvalidMatchRangeException::class.java) {
+            MatchRange.from("TODAY")
         }
     }
 
