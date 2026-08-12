@@ -81,7 +81,11 @@ mockk = { module = "io.mockk:mockk", version = "1.13.17" }
 
 testcontainer = { module = "org.testcontainers:testcontainers", version.ref = "testcontainer"}
 testcontainer-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainer" }
-testcontainer-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version = "1.21.2" }
+# Pinned to 1.x on purpose: org.testcontainers:junit-jupiter has no 2.x release (latest is
+# 1.21.x), so it cannot use version.ref = "testcontainer" like its siblings. It only
+# contributes the @Testcontainers/@Container JUnit5 extension; its transitive
+# org.testcontainers:testcontainers is resolved up to the 2.0.x core by the sibling entries.
+testcontainer-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version = "1.21.4" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging", version = "7.0.0" }
 p6spy = { module = "com.github.gavlyukovskiy:p6spy-spring-boot-starter", version.ref = "p6spy" }
 spring-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "spring-security-test" }
