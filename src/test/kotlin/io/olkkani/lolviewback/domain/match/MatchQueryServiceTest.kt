@@ -2,6 +2,7 @@ package io.olkkani.lolviewback.domain.match
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.infastructure.outbound.repository.MatchParticipantRepository
 import io.olkkani.lolviewback.infastructure.outbound.repository.MatchRepository
@@ -49,11 +50,30 @@ class MatchQueryServiceTest {
         val expectedStart = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
         val expectedEnd = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
 
-        every { matchRepository.findByStartTimeBetween(expectedStart, expectedEnd) } returns listOf(laterMatch, earlierMatch)
+        every {
+            matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(expectedStart, expectedEnd)
+        } returns listOf(laterMatch, earlierMatch)
         every { matchParticipantRepository.findByMatchIdIn(listOf(1L, 2L)) } returns emptyList<MatchParticipant>()
 
         val result = service.findMatches(MatchRange.TODAY, today)
 
         assertEquals(listOf(1L, 2L), result.map { it.id })
+    }
+
+    @Test
+    fun `findMatches returns an empty list when no matches fall in the range`() {
+        val today = LocalDate.of(2026, 8, 12)
+        val expectedStart = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val expectedEnd = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
+
+        every {
+            matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(expectedStart, expectedEnd)
+        } returns emptyList()
+        every { matchParticipantRepository.findByMatchIdIn(emptyList()) } returns emptyList<MatchParticipant>()
+
+        val result = service.findMatches(MatchRange.TODAY, today)
+
+        assertEquals(emptyList<Long>(), result.map { it.id })
+        verify(exactly = 1) { matchParticipantRepository.findByMatchIdIn(emptyList()) }
     }
 }
