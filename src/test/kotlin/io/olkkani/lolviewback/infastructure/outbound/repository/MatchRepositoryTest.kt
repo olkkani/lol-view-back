@@ -5,7 +5,9 @@ import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Match
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchType
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -35,6 +37,9 @@ class MatchRepositoryTest {
 
     @Autowired
     lateinit var leagueRepository: LeagueRepository
+
+    @Autowired
+    lateinit var entityManager: EntityManager
 
     private val kst = ZoneId.of("Asia/Seoul")
 
@@ -68,7 +73,7 @@ class MatchRepositoryTest {
     )
 
     @Test
-    fun `findByStartTimeBetween returns matches within range only`() {
+    fun `findByStartTime range returns matches within range only`() {
         val t = tournament()
         val inRange = matchRepository.save(match(ZonedDateTime.of(2026, 8, 12, 10, 0, 0, 0, kst), t))
         matchRepository.save(match(ZonedDateTime.of(2026, 8, 11, 23, 0, 0, 0, kst), t))
@@ -77,9 +82,62 @@ class MatchRepositoryTest {
         val start = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
         val end = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
 
-        val result = matchRepository.findByStartTimeBetween(start, end)
+        val result = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
 
         assertEquals(1, result.size)
         assertEquals(inRange.id, result[0].id)
+    }
+
+    @Test
+    fun `findByStartTime range is start-inclusive and end-exclusive`() {
+        val t = tournament()
+        val start = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val end = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
+
+        val atStart = matchRepository.save(match(start, t))
+        val atEnd = matchRepository.save(match(end, t))
+
+        val result = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
+
+        assertEquals(listOf(atStart.id), result.map { it.id })
+        assertFalse(result.any { it.id == atEnd.id })
+    }
+
+    @Test
+    fun `a match on a shared day boundary belongs to exactly one of two adjacent ranges`() {
+        val t = tournament()
+        val day1Start = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val day2Start = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
+        val day3Start = ZonedDateTime.of(2026, 8, 14, 0, 0, 0, 0, kst)
+
+        // 15:00Z == 00:00 KST — the most common real start time in the upstream feed.
+        val boundaryMatch = matchRepository.save(match(day2Start, t))
+
+        val day1 = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(day1Start, day2Start)
+        val day2 = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(day2Start, day3Start)
+
+        assertFalse(day1.any { it.id == boundaryMatch.id })
+        assertEquals(listOf(boundaryMatch.id), day2.map { it.id })
+    }
+
+    @Test
+    fun `KST ZonedDateTime survives the persistence round-trip`() {
+        val t = tournament()
+        val startTime = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val saved = matchRepository.save(match(startTime, t))
+        matchRepository.flush()
+        entityManager.clear()
+
+        val justAfterStart = startTime.plusNanos(1_000_000)
+        val result = matchRepository
+            .findByStartTimeGreaterThanEqualAndStartTimeLessThan(startTime, justAfterStart)
+
+        assertEquals(listOf(saved.id), result.map { it.id })
+        // Same instant regardless of the zone the value is rendered in.
+        assertEquals(startTime.toInstant(), result[0].startTime.toInstant())
+        assertEquals(
+            startTime.withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime(),
+            result[0].startTime.withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime(),
+        )
     }
 }

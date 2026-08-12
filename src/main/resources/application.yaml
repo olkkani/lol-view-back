@@ -24,6 +24,17 @@ spring:
       naming:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
         implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
+    properties:
+      hibernate:
+        jdbc:
+          # match.start_time is `timestamp` (WITHOUT time zone) while the entity field is
+          # ZonedDateTime. Without this, Hibernate normalises through the JVM default zone
+          # on write AND read, so the same row means different instants on a UTC container
+          # vs. a KST laptop — shifting which matches fall into the KST day ranges that
+          # MatchRange computes by up to 9 hours. Pinning UTC makes the round-trip
+          # JVM-timezone-independent. No unit test can prove this without forking a JVM
+          # with -Duser.timezone, so the guarantee lives in this config line.
+          time_zone: UTC
 #        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
 #        implicit-strategy: org.springframework.boot.hibernate.SpringImplicitNamingStrategy
 lol-api:

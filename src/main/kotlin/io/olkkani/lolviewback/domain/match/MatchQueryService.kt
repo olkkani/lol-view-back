@@ -19,7 +19,7 @@ class MatchQueryService(
 
     fun findMatches(range: MatchRange, today: LocalDate = LocalDate.now(KST)): List<MatchResponse> {
         val (start, end) = range.toDateRange(today)
-        val matches = matchRepository.findByStartTimeBetween(start, end)
+        val matches = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
             .sortedBy { it.startTime }
 
         val matchIds = matches.mapNotNull { it.id }
