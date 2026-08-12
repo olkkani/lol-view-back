@@ -65,6 +65,7 @@ detekt-rules-ktlint-wrapper = { module = "io.gitlab.arturbosch.detekt:detekt-rul
 # Test and logging
 spring-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
 spring-testcontainer = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "spring-boot" }
+spring-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test", version.ref = "spring-boot" }
 
 # Junit and Kotest libs
 junit = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
@@ -79,6 +80,7 @@ mockk = { module = "io.mockk:mockk", version = "1.13.17" }
 
 testcontainer = { module = "org.testcontainers:testcontainers", version.ref = "testcontainer"}
 testcontainer-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainer" }
+testcontainer-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version = "1.21.2" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging", version = "7.0.0" }
 p6spy = { module = "com.github.gavlyukovskiy:p6spy-spring-boot-starter", version.ref = "p6spy" }
 spring-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "spring-security-test" }
@@ -110,7 +112,7 @@ jjwt = ["jjwt-impl", "jjwt-jackson"]
 persistence = ["spring-jpa", "hibernate-utils", "spring-flyway", "flyway-postgresql", "jooq", "spring-jooq", "jooq-codgen", "tsid"]
 persistence-database = ["postgresql"]
 persistence-database-embedded = ["spring-docker-compose"]
-persistence-test-testcontainer = ["spring-testcontainer", "testcontainer", "testcontainer-postgresql"]
+persistence-test-testcontainer = ["spring-testcontainer", "testcontainer", "testcontainer-postgresql", "testcontainer-junit-jupiter", "spring-data-jpa-test"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
