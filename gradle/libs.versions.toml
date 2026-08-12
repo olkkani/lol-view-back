@@ -64,6 +64,7 @@ detekt-rules-ktlint-wrapper = { module = "io.gitlab.arturbosch.detekt:detekt-rul
 
 # Test and logging
 spring-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
+spring-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test", version.ref = "spring-boot" }
 spring-testcontainer = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "spring-boot" }
 spring-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test", version.ref = "spring-boot" }
 
@@ -106,7 +107,7 @@ kotlin = ["kotlin-stdlib", "kotlin-logging"]
 kotlin-coroutines = ["kotlin-reflect", "coroutines-core", "coroutines-reactor", "kotlin-reactor-extensions"]
 kotlin-coroutines-test = ["reactor-test"]
 spring = ["spring-web", "spring-jetty", "spring-actuator", "spring-webflux", "spring-quartz"]
-spring-test = ["spring-test", "spring-security-test", "kotest-extensions-spring"]
+spring-test = ["spring-test", "spring-webmvc-test", "spring-security-test", "kotest-extensions-spring"]
 spring-security = ["spring-security", "spring-validation"]
 jjwt = ["jjwt-impl", "jjwt-jackson"]
 persistence = ["spring-jpa", "hibernate-utils", "spring-flyway", "flyway-postgresql", "jooq", "spring-jooq", "jooq-codgen", "tsid"]
