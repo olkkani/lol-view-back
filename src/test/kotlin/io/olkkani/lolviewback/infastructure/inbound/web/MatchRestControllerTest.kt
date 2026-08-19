@@ -6,6 +6,7 @@ import io.olkkani.lolviewback.domain.match.MatchQueryService
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchClubResponse
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchResponse
+import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LogoBackdrop
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
 import jakarta.servlet.ServletException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -46,7 +47,8 @@ class MatchRestControllerTest {
             startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
             matchState = MatchState.ONGOING,
             matchLabel = "W1",
-            clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", score = 1)),
+            leagueName = "LCK",
+            clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = LogoBackdrop.DARK, score = 1)),
         )
         every { matchQueryService.findMatches(MatchRange.TODAY) } returns listOf(response)
 
@@ -55,6 +57,26 @@ class MatchRestControllerTest {
                 status { isOk() }
                 jsonPath("$[0].id") { value(1) }
                 jsonPath("$[0].matchState") { value("ONGOING") }
+                jsonPath("$[0].clubs[0].logoBackdrop") { value("DARK") }
+            }
+    }
+
+    @Test
+    fun `GET matches serializes an unset logoBackdrop as JSON null`() {
+        val response = MatchResponse(
+            id = 1L,
+            startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
+            matchState = MatchState.ONGOING,
+            matchLabel = "W1",
+            leagueName = "LCK",
+            clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = null, score = 1)),
+        )
+        every { matchQueryService.findMatches(MatchRange.TODAY) } returns listOf(response)
+
+        mockMvc.get("/matches?range=today")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$[0].clubs[0].logoBackdrop") { value(org.hamcrest.Matchers.nullValue()) }
             }
     }
 

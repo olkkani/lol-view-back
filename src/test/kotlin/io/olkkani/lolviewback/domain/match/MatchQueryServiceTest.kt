@@ -6,6 +6,7 @@ import io.mockk.verify
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.infastructure.outbound.repository.MatchParticipantRepository
 import io.olkkani.lolviewback.infastructure.outbound.repository.MatchRepository
+import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Match
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchParticipant
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
@@ -27,7 +28,10 @@ class MatchQueryServiceTest {
     @Test
     fun `findMatches queries repository with today's date range and sorts by startTime ascending`() {
         val today = LocalDate.of(2026, 8, 12)
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
         val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
         val laterMatch = Match(
             id = 2L,
             startTime = ZonedDateTime.of(2026, 8, 12, 20, 0, 0, 0, kst),

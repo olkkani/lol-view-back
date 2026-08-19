@@ -12,7 +12,7 @@ class TournamentMapperTest {
     fun `toEntity maps api response fields onto Tournament entity`() {
         val league = League(
             leagueName = "LCK",
-            leagueLogoUrl = "https://example.com/lck.png",
+            logoUrl = "https://example.com/lck.png",
             isActive = true,
             leagueApiId = "league-api-1",
         )

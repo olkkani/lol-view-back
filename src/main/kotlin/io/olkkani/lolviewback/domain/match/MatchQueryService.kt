@@ -16,15 +16,21 @@ class MatchQueryService(
     private val matchRepository: MatchRepository,
     private val matchParticipantRepository: MatchParticipantRepository,
 ) {
-
-    fun findMatches(range: MatchRange, today: LocalDate = LocalDate.now(KST)): List<MatchResponse> {
+    fun findMatches(
+        range: MatchRange,
+        today: LocalDate = LocalDate.now(KST),
+    ): List<MatchResponse> {
         val (start, end) = range.toDateRange(today)
-        val matches = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
-            .sortedBy { it.startTime }
+        val matches =
+            matchRepository
+                .findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
+                .sortedBy { it.startTime }
 
         val matchIds = matches.mapNotNull { it.id }
-        val participantsByMatchId = matchParticipantRepository.findByMatchIdIn(matchIds)
-            .groupBy { it.match.id }
+        val participantsByMatchId =
+            matchParticipantRepository
+                .findByMatchIdIn(matchIds)
+                .groupBy { it.match.id }
 
         return matches.map { match ->
             match.toResponse(participantsByMatchId[match.id].orEmpty())

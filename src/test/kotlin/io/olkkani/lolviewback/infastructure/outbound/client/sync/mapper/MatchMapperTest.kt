@@ -16,7 +16,7 @@ class MatchMapperTest {
     private fun sampleTournament(): Tournament {
         val league = League(
             leagueName = "LCK",
-            leagueLogoUrl = "https://example.com/lck.png",
+            logoUrl = "https://example.com/lck.png",
             isActive = true,
             leagueApiId = "league-api-1",
         )

@@ -1,5 +1,6 @@
 package io.olkkani.lolviewback.infastructure.inbound.web.dto
 
+import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LogoBackdrop
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Match
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchParticipant
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
@@ -11,12 +12,14 @@ data class MatchResponse(
     val startTime: ZonedDateTime,
     val matchState: MatchState,
     val matchLabel: String,
+    val leagueName: String,
     val clubs: List<MatchClubResponse>,
 )
 
 data class MatchClubResponse(
     val name: String,
     val logoUrl: String,
+    val logoBackdrop: LogoBackdrop?,
     val score: Int,
 )
 
@@ -28,14 +31,16 @@ fun Match.toResponse(participants: List<MatchParticipant>): MatchResponse {
         startTime = this.startTime.withZoneSameInstant(KST),
         matchState = this.matchState,
         matchLabel = this.matchLabel,
+        leagueName = this.tournament.league.leagueName,
         clubs = participants.map { it.toClubResponse() },
     )
 }
 
 private fun MatchParticipant.toClubResponse(): MatchClubResponse {
     return MatchClubResponse(
-        name = this.clubProfile.clubName,
+        name = this.clubProfile.abbreviation,
         logoUrl = this.clubProfile.logoUrl,
+        logoBackdrop = this.clubProfile.logoBackdrop,
         score = this.score,
     )
 }

@@ -53,7 +53,7 @@ class MatchParticipantRepositoryTest {
 
     private fun tournament(): Tournament {
         val league = leagueRepository.save(
-            League(leagueName = "LCK", leagueLogoUrl = "https://example.com/lck.png", isActive = true, leagueApiId = "lck-api-id"),
+            League(leagueName = "LCK", logoUrl = "https://example.com/lck.png", isActive = true, leagueApiId = "lck-api-id"),
         )
         return tournamentRepository.save(
             Tournament(

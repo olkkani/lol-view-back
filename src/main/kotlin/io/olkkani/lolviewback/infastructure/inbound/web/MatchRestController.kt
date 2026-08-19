@@ -15,15 +15,12 @@ import org.springframework.web.bind.annotation.RestController
 class MatchRestController(
     private val matchQueryService: MatchQueryService,
 ) {
-
     @GetMapping("/matches")
-    fun getMatches(@RequestParam range: String): List<MatchResponse> {
-        return matchQueryService.findMatches(MatchRange.from(range))
-    }
+    fun getMatches(
+        @RequestParam range: String,
+    ): List<MatchResponse> = matchQueryService.findMatches(MatchRange.from(range))
 
     @ExceptionHandler(InvalidMatchRangeException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    fun handleInvalidRange(ex: InvalidMatchRangeException): Map<String, String> {
-        return mapOf("error" to (ex.message ?: "Invalid request"))
-    }
+    fun handleInvalidRange(ex: InvalidMatchRangeException): Map<String, String> = mapOf("error" to (ex.message ?: "Invalid request"))
 }

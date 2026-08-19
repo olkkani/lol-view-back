@@ -33,7 +33,7 @@ kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 # Spring
 spring-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
-spring-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux", version.ref = "spring-boot" }
+spring-webclient = { module = "org.springframework.boot:spring-boot-starter-webclient", version.ref = "spring-boot" }
 spring-quartz = { module = "org.springframework.boot:spring-boot-starter-quartz", version.ref = "spring-boot" }
 spring-jetty = { module = "org.springframework.boot:spring-boot-starter-jetty", version.ref = "spring-boot"}
 spring-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "spring-boot" }
@@ -110,7 +110,7 @@ test = ["junit", "junit-engine", "junit-platform-common","junit-platform-engine"
 kotlin = ["kotlin-stdlib", "kotlin-logging"]
 kotlin-coroutines = ["kotlin-reflect", "coroutines-core", "coroutines-reactor", "kotlin-reactor-extensions"]
 kotlin-coroutines-test = ["reactor-test"]
-spring = ["spring-web", "spring-jetty", "spring-actuator", "spring-webflux", "spring-quartz"]
+spring = ["spring-web", "spring-jetty", "spring-actuator", "spring-webclient", "spring-quartz"]
 spring-test = ["spring-test", "spring-webmvc-test", "spring-security-test", "kotest-extensions-spring"]
 spring-security = ["spring-security", "spring-validation"]
 jjwt = ["jjwt-impl", "jjwt-jackson"]

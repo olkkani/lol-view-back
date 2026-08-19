@@ -1,13 +1,16 @@
 package io.olkkani.lolviewback.infastructure.outbound.repository
 
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
+import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LogoBackdrop
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Match
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchState
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.MatchType
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
 import jakarta.persistence.EntityManager
+import org.hibernate.SessionFactory
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -20,7 +23,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 @Testcontainers
-@DataJpaTest
+@DataJpaTest(properties = ["spring.jpa.properties.hibernate.generate_statistics=true"])
 class MatchRepositoryTest {
 
     companion object {
@@ -41,13 +44,16 @@ class MatchRepositoryTest {
     @Autowired
     lateinit var entityManager: EntityManager
 
+    @Autowired
+    lateinit var sessionFactory: SessionFactory
+
     private val kst = ZoneId.of("Asia/Seoul")
 
     private fun tournament(): Tournament {
         val league = leagueRepository.save(
             League(
                 leagueName = "LCK",
-                leagueLogoUrl = "https://example.com/lck.png",
+                logoUrl = "https://example.com/lck.png",
                 isActive = true,
                 leagueApiId = "lck-api-id",
             ),
@@ -118,6 +124,64 @@ class MatchRepositoryTest {
 
         assertFalse(day1.any { it.id == boundaryMatch.id })
         assertEquals(listOf(boundaryMatch.id), day2.map { it.id })
+    }
+
+    @Test
+    fun `findByStartTime range fetch-joins tournament and league in a single query`() {
+        val t1 = tournament()
+        val t2 = tournament()
+        matchRepository.save(match(ZonedDateTime.of(2026, 8, 12, 10, 0, 0, 0, kst), t1))
+        matchRepository.save(match(ZonedDateTime.of(2026, 8, 12, 12, 0, 0, 0, kst), t2))
+        matchRepository.flush()
+        entityManager.clear()
+
+        val start = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val end = ZonedDateTime.of(2026, 8, 13, 0, 0, 0, 0, kst)
+
+        sessionFactory.statistics.clear()
+        val result = matchRepository.findByStartTimeGreaterThanEqualAndStartTimeLessThan(start, end)
+        result.forEach { assertEquals("LCK", it.tournament.league.leagueName) }
+
+        assertEquals(2, result.size)
+        assertEquals(1, sessionFactory.statistics.prepareStatementCount)
+    }
+
+    @Test
+    fun `League logoBackdrop persists and reads back as the same enum constant`() {
+        val saved = leagueRepository.save(
+            League(
+                leagueName = "LCK",
+                logoUrl = "https://example.com/lck.png",
+                isActive = true,
+                leagueApiId = "lck-api-id-2",
+                logoBackdrop = LogoBackdrop.DARK,
+            ),
+        )
+        leagueRepository.flush()
+        entityManager.clear()
+
+        val found = leagueRepository.findById(saved.id!!).get()
+
+        assertEquals(LogoBackdrop.DARK, found.logoBackdrop)
+    }
+
+    @Test
+    fun `League logoBackdrop round-trips as null when uncurated`() {
+        val saved = leagueRepository.save(
+            League(
+                leagueName = "LCK",
+                logoUrl = "https://example.com/lck.png",
+                isActive = true,
+                leagueApiId = "lck-api-id-3",
+                logoBackdrop = null,
+            ),
+        )
+        leagueRepository.flush()
+        entityManager.clear()
+
+        val found = leagueRepository.findById(saved.id!!).get()
+
+        assertNull(found.logoBackdrop)
     }
 
     @Test

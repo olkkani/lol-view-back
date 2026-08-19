@@ -13,7 +13,7 @@ class TournamentDueCheckerTest {
 
     private fun league() = League(
         leagueName = "MSI",
-        leagueLogoUrl = "https://example.com/msi.png",
+        logoUrl = "https://example.com/msi.png",
         isActive = true,
         leagueApiId = "msi-api-id",
     )

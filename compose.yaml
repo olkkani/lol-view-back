@@ -11,4 +11,4 @@ services:
       POSTGRES_USER: lolviewback
       POSTGRES_PASSWORD: lolviewback
     ports:
-      - "5432"
+      - "5432:5432"

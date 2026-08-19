@@ -16,8 +16,6 @@ spring:
   config:
     activate:
       on-profile: common
-  jackson:
-    property-naming-strategy: SNAKE_CASE
   # persistence
   jpa:
     hibernate:
@@ -73,7 +71,10 @@ spring:
     generate-ddl: false
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    # LocalFlywayCleanConfig 가 clean() 을 호출하려면 필요. 이 블록은 persistence-local
+    # 전용이라 persistence-prod 는 Spring Boot 기본값(cleanDisabled=true)을 그대로 유지한다.
+    clean-disabled: false
+    locations: classpath:db/migration,classpath:db/seed
   docker:
     compose:
       # explicit restatement of the 4.1.0 default: container is stopped (not removed)
