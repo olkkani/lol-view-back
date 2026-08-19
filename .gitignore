@@ -44,3 +44,6 @@ out/
 
 ### Git worktrees ###
 .worktrees/
+
+### Superpowers scratch docs ###
+docs/superpowers/
