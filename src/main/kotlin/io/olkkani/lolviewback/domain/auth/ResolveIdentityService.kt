@@ -6,12 +6,14 @@ import io.olkkani.lolviewback.infastructure.outbound.repository.entity.User
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.UserIdentity
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class ResolveIdentityService(
     private val userIdentityRepository: UserIdentityRepository,
     private val userRepository: UserRepository,
 ) {
+    @Transactional
     fun resolveIdentity(
         provider: AuthProvider,
         providerUserId: String,
@@ -42,7 +44,7 @@ class ResolveIdentityService(
 
     private fun saveIdentityOrThrow(userId: Long, provider: AuthProvider, providerUserId: String) {
         try {
-            userIdentityRepository.save(
+            userIdentityRepository.saveAndFlush(
                 UserIdentity(userId = userId, provider = provider.name, providerUserId = providerUserId),
             )
         } catch (ex: DataIntegrityViolationException) {

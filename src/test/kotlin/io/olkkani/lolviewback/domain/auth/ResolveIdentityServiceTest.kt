@@ -25,7 +25,7 @@ class ResolveIdentityServiceTest {
         every { userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE.name, "sub-1") } returns null
         val savedUser = User(id = 100L)
         every { userRepository.save(any()) } returns savedUser
-        every { userIdentityRepository.save(any()) } returns UserIdentity(id = 1L, userId = 100L, provider = "GOOGLE", providerUserId = "sub-1")
+        every { userIdentityRepository.saveAndFlush(any()) } returns UserIdentity(id = 1L, userId = 100L, provider = "GOOGLE", providerUserId = "sub-1")
 
         val result = service.resolveIdentity(AuthProvider.GOOGLE, "sub-1", currentSessionUserId = null)
 
@@ -49,7 +49,7 @@ class ResolveIdentityServiceTest {
     fun `existing session and no existing identity links the new identity to the session user`() {
         every { userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE.name, "sub-3") } returns null
         val savedIdentity = slot<UserIdentity>()
-        every { userIdentityRepository.save(capture(savedIdentity)) } answers { savedIdentity.captured }
+        every { userIdentityRepository.saveAndFlush(capture(savedIdentity)) } answers { savedIdentity.captured }
 
         val result = service.resolveIdentity(AuthProvider.GOOGLE, "sub-3", currentSessionUserId = 300L)
 
@@ -80,7 +80,7 @@ class ResolveIdentityServiceTest {
 
         assertTrue(result is ResolveResult.LoggedIn)
         assertEquals(500L, (result as ResolveResult.LoggedIn).userId)
-        verify(exactly = 0) { userIdentityRepository.save(any()) }
+        verify(exactly = 0) { userIdentityRepository.saveAndFlush(any()) }
     }
 
     @Test
@@ -88,7 +88,7 @@ class ResolveIdentityServiceTest {
         every { userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE.name, "sub-6") } returns null
         val newUser = User(id = 600L)
         every { userRepository.save(any()) } returns newUser
-        every { userIdentityRepository.save(any()) } throws DataIntegrityViolationException("duplicate key")
+        every { userIdentityRepository.saveAndFlush(any()) } throws DataIntegrityViolationException("duplicate key")
 
         assertThrows(IdentityAlreadyLinkedException::class.java) {
             service.resolveIdentity(AuthProvider.GOOGLE, "sub-6", currentSessionUserId = null)
