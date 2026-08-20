@@ -3,6 +3,11 @@ VALUES
     (9000),
     (9001);
 
+INSERT INTO "user_identities" ("id", "user_id", "provider", "provider_user_id")
+VALUES
+    (9000, 9000, 'GOOGLE', 'seed-google-sub-9000'),
+    (9001, 9001, 'GOOGLE', 'seed-google-sub-9001');
+
 INSERT INTO "user_followed_clubs" ("id", "user_id", "club_id")
 VALUES
     (9000, 9000, 1000),
