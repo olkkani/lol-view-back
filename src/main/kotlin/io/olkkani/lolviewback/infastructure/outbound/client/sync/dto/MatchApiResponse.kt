@@ -76,7 +76,7 @@ data class MatchScheduleEventMatch(
     @JsonProperty("id")
     val id: String,
     @JsonProperty("teams")
-    val teams: List<MatchApiTeam>,
+    val teams: List<MatchScheduleEventTeam>,
     @JsonProperty("strategy")
     val strategy: MatchScheduleEventStrategy,
 )
@@ -144,14 +144,11 @@ data class MatchApiResponse(
     }
 }
 
-data class MatchApiTeam (
+data class MatchApiTeam(
     val name: String,
-    val code:
-) {
-
-}
-
+    val code: String,
+)
 
 data class MatchParticipantApiResponse(
-    val
+    val id: String,
 )
