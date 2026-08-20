@@ -1,6 +1,6 @@
 package io.olkkani.lolviewback.infastructure.outbound.repository.entity
 
-import io.hypersistence.utils.hibernate.id.Tsid
+import io.hypersistence.tsid.TSID
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
@@ -11,8 +11,8 @@ import java.time.LocalDate
 @Entity
 @Table(name = "league_recurrence_windows")
 class LeagueRecurrenceWindow(
-    @Id @Tsid
-    var id: Long? = null,
+    @Id
+    var id: Long = TSID.Factory.getTsid().toLong(),
     var label: String,
     var sequenceOrder: Int,
     var intervalYear: Int,

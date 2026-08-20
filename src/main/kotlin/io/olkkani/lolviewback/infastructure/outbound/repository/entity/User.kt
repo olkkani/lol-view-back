@@ -1,6 +1,6 @@
 package io.olkkani.lolviewback.infastructure.outbound.repository.entity
 
-import io.hypersistence.utils.hibernate.id.Tsid
+import io.hypersistence.tsid.TSID
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
@@ -8,6 +8,6 @@ import jakarta.persistence.Table
 @Entity
 @Table(name = "users")
 class User(
-    @Id @Tsid
-    var id: Long,
+    @Id
+    var id: Long = TSID.Factory.getTsid().toLong(),
 )
