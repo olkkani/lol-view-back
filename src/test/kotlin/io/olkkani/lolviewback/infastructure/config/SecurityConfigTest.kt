@@ -32,6 +32,14 @@ class SecurityConfigTest {
     }
 
     @Test
+    fun `GET matches is reachable without authentication`() {
+        // No range param is supplied, so this returns 400 (bad request), not 200 -
+        // the point here is only proving it's not blocked with a 401.
+        mockMvc.get("/matches")
+            .andExpect { status { isBadRequest() } }
+    }
+
+    @Test
     fun `a request with a valid bearer token is authenticated`() {
         val token = jwtService.issueToken(userId = 1L)
 

@@ -5,6 +5,7 @@ import io.olkkani.lolviewback.infastructure.inbound.web.security.OAuth2FailureHa
 import io.olkkani.lolviewback.infastructure.inbound.web.security.OAuth2SuccessHandler
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -37,6 +38,8 @@ class SecurityConfig(
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/matches").permitAll()
+                    .requestMatchers("/actuator/health/**").permitAll()
                     .anyRequest().authenticated()
             }
             .exceptionHandling { exceptionHandling ->
