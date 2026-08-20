@@ -40,6 +40,9 @@ lol-api:
   url:
     tournament: ${LOL_API_URL_TOURNAMENT}
     match: ${LOL_API_URL_MATCH}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-hours: 24
 --- # server-local
 spring:
   config:
