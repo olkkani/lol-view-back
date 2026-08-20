@@ -114,6 +114,22 @@ decorator:
 #  host: ${DB_REDIS_HOST}
 #  port: ${DB_REDIS_PORT}
 #  password: ${DB_REDIS_PASSWORD}
+--- # security
+spring:
+  config:
+    activate:
+      on-profile: security
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
 --- # lol-api
 lol-api:
   key: ${LOL_API_KEY}
