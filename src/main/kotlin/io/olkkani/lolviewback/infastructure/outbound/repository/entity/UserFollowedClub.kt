@@ -14,7 +14,5 @@ class UserFollowedClub(
     var id: Long,
     @ManyToOne @JoinColumn(name = "user_id")
     var user: User,
-    var userId: Long,
-    var clubId: Long
-) {
-}
+    var clubId: Long,
+)
