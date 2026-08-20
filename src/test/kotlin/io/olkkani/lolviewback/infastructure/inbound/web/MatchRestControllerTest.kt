@@ -2,6 +2,7 @@ package io.olkkani.lolviewback.infastructure.inbound.web
 
 import io.mockk.every
 import io.mockk.mockk
+import io.olkkani.lolviewback.domain.auth.JwtService
 import io.olkkani.lolviewback.domain.match.MatchQueryService
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchClubResponse
 import io.olkkani.lolviewback.infastructure.inbound.web.dto.MatchRange
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Bean
@@ -22,7 +24,7 @@ import org.springframework.test.web.servlet.get
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-@WebMvcTest(MatchRestController::class)
+@WebMvcTest(MatchRestController::class, excludeAutoConfiguration = [OAuth2ClientWebSecurityAutoConfiguration::class])
 @Import(MatchRestControllerTest.MockConfig::class)
 class MatchRestControllerTest {
 
@@ -30,6 +32,9 @@ class MatchRestControllerTest {
     class MockConfig {
         @Bean
         fun matchQueryService(): MatchQueryService = mockk()
+
+        @Bean
+        fun jwtService(): JwtService = mockk()
     }
 
     @Autowired
