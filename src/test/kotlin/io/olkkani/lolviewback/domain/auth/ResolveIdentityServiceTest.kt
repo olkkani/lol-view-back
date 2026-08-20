@@ -9,8 +9,10 @@ import io.olkkani.lolviewback.infastructure.outbound.repository.UserRepository
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.User
 import io.olkkani.lolviewback.infastructure.outbound.repository.entity.UserIdentity
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.dao.DataIntegrityViolationException
 
 class ResolveIdentityServiceTest {
 
@@ -79,5 +81,17 @@ class ResolveIdentityServiceTest {
         assertTrue(result is ResolveResult.LoggedIn)
         assertEquals(500L, (result as ResolveResult.LoggedIn).userId)
         verify(exactly = 0) { userIdentityRepository.save(any()) }
+    }
+
+    @Test
+    fun `a race that slips past the existence check surfaces as IdentityAlreadyLinkedException`() {
+        every { userIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE.name, "sub-6") } returns null
+        val newUser = User(id = 600L)
+        every { userRepository.save(any()) } returns newUser
+        every { userIdentityRepository.save(any()) } throws DataIntegrityViolationException("duplicate key")
+
+        assertThrows(IdentityAlreadyLinkedException::class.java) {
+            service.resolveIdentity(AuthProvider.GOOGLE, "sub-6", currentSessionUserId = null)
+        }
     }
 }

@@ -68,4 +68,21 @@ class UserIdentityRepositoryTest {
         assertEquals(1, found.size)
         assertEquals("GOOGLE", found[0].provider)
     }
+
+    @Test
+    fun `saving a duplicate provider plus provider_user_id violates the unique constraint`() {
+        val user1 = userRepository.save(User(id = 10L))
+        val user2 = userRepository.save(User(id = 11L))
+        entityManager.flush()
+        userIdentityRepository.save(UserIdentity(userId = user1.id, provider = "GOOGLE", providerUserId = "dup-sub"))
+        entityManager.flush()
+
+        val duplicate = UserIdentity(userId = user2.id, provider = "GOOGLE", providerUserId = "dup-sub")
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+            org.springframework.dao.DataIntegrityViolationException::class.java,
+        ) {
+            userIdentityRepository.saveAndFlush(duplicate)
+        }
+    }
 }
