@@ -34,6 +34,7 @@ dependencies {
         )
     }
     implementation(libs.bundles.spring.security)
+    implementation(libs.bundles.jjwt)
     developmentOnly(libs.spring.devtools)
     testImplementation(libs.bundles.test)
     testImplementation(libs.bundles.spring.test)
@@ -50,7 +51,6 @@ dependencies {
 //    implementation("org.springframework.boot:spring-boot-starter-batch")
 //    implementation("org.springframework.boot:spring-boot-starter-data-rest")
 //    implementation("org.springframework.boot:spring-boot-starter-hateoas")
-//    implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
 //    implementation("org.springframework.boot:spring-boot-starter-webclient")
 //    implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
 //    developmentOnly("org.springframework.boot:spring-boot-docker-compose")
