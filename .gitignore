@@ -45,5 +45,9 @@ out/
 ### Git worktrees ###
 .worktrees/
 
+### Agent ###
+.codex/
+.claude/
+
 ### Superpowers scratch docs ###
 docs/superpowers/

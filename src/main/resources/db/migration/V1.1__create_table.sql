@@ -69,15 +69,13 @@ CREATE TABLE "matches"
     "tournament_id" BIGINT
 );
 
-CREATE TABLE "match_participants"
-(
-    "id"              BIGINT PRIMARY KEY,
-    "is_win"          boolean,
-    "score"           integer,
-    "match_id"        BIGINT,
-    "club_id"         BIGINT,
-    "club_profile_id" BIGINT
-);
+CREATE TABLE "match_sets"(
+    "id" BIGINT PRIMARY KEY,
+    "set_api_id" varchar,
+    "set_number" integer,
+    "set_win_club_id" BIGINT,
+    "match_id" BIGINT,
+)
 
 
 CREATE TABLE "league_recurrence_windows"
