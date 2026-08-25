@@ -69,6 +69,16 @@ CREATE TABLE "matches"
     "tournament_id" BIGINT
 );
 
+CREATE TABLE "match_participants"
+(
+    "id"              BIGINT PRIMARY KEY,
+    "is_win"          boolean,
+    "score"           integer,
+    "match_id"        BIGINT,
+    "club_id"         BIGINT,
+    "club_profile_id" BIGINT
+);
+
 CREATE TABLE "match_sets"(
     "id" BIGINT PRIMARY KEY,
     "set_api_id" varchar,
@@ -117,6 +127,12 @@ ALTER TABLE "match_participants"
 
 ALTER TABLE "match_participants"
     ADD FOREIGN KEY ("club_profile_id") REFERENCES "club_profiles" ("id") DEFERRABLE;
+
+ALTER TABLE "match_sets"
+    ADD FOREIGN KEY ("match_id") REFERENCES "matches" ("id") DEFERRABLE;
+
+ALTER TABLE "match_sets"
+    ADD FOREIGN KEY ("set_win_club_id") REFERENCES "clubs" ("id") DEFERRABLE;
 
 ALTER TABLE "league_recurrence_windows"
     ADD FOREIGN KEY ("league_id") REFERENCES "leagues" ("id") DEFERRABLE;
