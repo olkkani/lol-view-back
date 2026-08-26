@@ -1,8 +1,9 @@
 package io.olkkani.lolviewback.domain.sync
 
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.League
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.LeagueRecurrenceWindow
-import io.olkkani.lolviewback.infastructure.outbound.repository.entity.Tournament
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LeagueRecurrenceWindow
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
+import io.olkkani.lolviewback.application.sync.TournamentDueChecker
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue

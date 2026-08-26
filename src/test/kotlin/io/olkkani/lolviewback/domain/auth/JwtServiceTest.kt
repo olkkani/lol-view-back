@@ -1,5 +1,6 @@
 package io.olkkani.lolviewback.domain.auth
 
+import io.olkkani.lolviewback.application.auth.JwtService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
