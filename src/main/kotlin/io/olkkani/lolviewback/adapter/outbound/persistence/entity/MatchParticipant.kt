@@ -14,7 +14,6 @@ class MatchParticipant(
     var id: Long = TSID.Factory.getTsid().toLong(),
     var isWin: Boolean?,
     var score: Int = 0,
-
     @ManyToOne @JoinColumn(name = "match_id")
     var match: Match,
 

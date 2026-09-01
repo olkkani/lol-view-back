@@ -3,7 +3,7 @@ package io.olkkani.lolviewback.adapter.inbound.web
 import io.mockk.every
 import io.mockk.mockk
 import io.olkkani.lolviewback.application.auth.JwtService
-import io.olkkani.lolviewback.application.match.ClubService
+import io.olkkani.lolviewback.application.service.ClubService
 import io.olkkani.lolviewback.adapter.inbound.web.dto.ClubResponse
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

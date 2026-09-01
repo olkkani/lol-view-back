@@ -38,4 +38,5 @@ enum class MatchState {
     SCHEDULED,
     ONGOING,
     FINISHED,
+    IN_PROGRESS,
 }

@@ -29,4 +29,6 @@ interface MatchRepository : JpaRepository<Match, Long> {
         start: ZonedDateTime,
         end: ZonedDateTime,
     ): List<Match>
+
+    fun findAllByMatchState(matchState: MatchState): List<Match>
 }

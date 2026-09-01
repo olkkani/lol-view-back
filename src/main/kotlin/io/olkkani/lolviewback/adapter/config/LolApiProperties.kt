@@ -11,5 +11,6 @@ data class LolApiProperties(
         val league: String = "",
         val tournament: String,
         val match: String,
+        val sets: String,
     )
 }

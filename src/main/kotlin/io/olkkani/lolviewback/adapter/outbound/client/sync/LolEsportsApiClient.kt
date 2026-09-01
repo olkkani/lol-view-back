@@ -3,6 +3,8 @@ package io.olkkani.lolviewback.adapter.outbound.client.sync
 import io.olkkani.lolviewback.adapter.config.LolApiProperties
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiResponseWrapper
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiResponse
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiResponseWrapper
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponseWrapper
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
@@ -67,4 +69,18 @@ class LolEsportsApiClient(
     ): MatchApiResponse? =
         fetchMatchesForLeague(leagueApiId)
             .find { it.apiId == matchApiId }
+
+
+    suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse{
+            val wrapper =
+                webClient
+                    .get()
+                    .uri("${properties.url.sets}$matchApiId")
+                    .header("x-api-key", properties.key)
+                    .retrieve()
+                    .awaitBody<MatchSetApiResponseWrapper>()
+            return wrapper.data.event
+    }
 }
+
+

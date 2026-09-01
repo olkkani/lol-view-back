@@ -40,12 +40,12 @@ CREATE TABLE "user_followed_leagues"
 
 CREATE TABLE "leagues"
 (
-    "id"             bigint PRIMARY KEY,
-    "league_name"    varchar,
-    "logo_url"       varchar,
-    "logo_backdrop"  varchar,
-    "is_active"      boolean,
-    "league_api_id"  varchar
+    "id"            bigint PRIMARY KEY,
+    "league_name"   varchar,
+    "logo_url"      varchar,
+    "logo_backdrop" varchar,
+    "is_active"     boolean,
+    "league_api_id" varchar
 );
 
 CREATE TABLE "tournaments"
@@ -79,13 +79,14 @@ CREATE TABLE "match_participants"
     "club_profile_id" BIGINT
 );
 
-CREATE TABLE "match_sets"(
-    "id" BIGINT PRIMARY KEY,
-    "set_api_id" varchar,
-    "set_number" integer,
+CREATE TABLE "match_sets"
+(
+    "id"              BIGINT PRIMARY KEY,
+    "set_api_id"      varchar,
+    "set_number"      integer,
     "set_win_club_id" BIGINT,
-    "match_id" BIGINT,
-)
+    "match_id"        BIGINT
+);
 
 
 CREATE TABLE "league_recurrence_windows"

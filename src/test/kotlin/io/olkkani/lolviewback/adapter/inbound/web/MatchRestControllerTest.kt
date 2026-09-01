@@ -3,7 +3,7 @@ package io.olkkani.lolviewback.adapter.inbound.web
 import io.mockk.every
 import io.mockk.mockk
 import io.olkkani.lolviewback.application.auth.JwtService
-import io.olkkani.lolviewback.application.match.MatchQueryService
+import io.olkkani.lolviewback.application.service.MatchQueryService
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchClubResponse
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchResponse

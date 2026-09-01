@@ -40,9 +40,8 @@ lol-api:
   url:
     tournament: ${LOL_API_URL_TOURNAMENT}
     match: ${LOL_API_URL_MATCH}
-jwt:
-  secret: ${JWT_SECRET}
-  expiration-hours: 24
+    sets: ${LOL_API_URL_SETS}
+
 --- # server-local
 spring:
   config:
@@ -130,9 +129,7 @@ spring:
               - openid
               - email
               - profile
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-hours: 24
 --- # lol-api
-lol-api:
-  key: ${LOL_API_KEY}
-  url:
-    tournament: ${LOL_API_URL_TOURNAMENT}
-    match: ${LOL_API_URL_MATCH}

@@ -12,7 +12,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipa
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
-import io.olkkani.lolviewback.application.match.MatchQueryService
+import io.olkkani.lolviewback.application.service.MatchQueryService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.time.LocalDate

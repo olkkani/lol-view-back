@@ -1,5 +1,6 @@
 package io.olkkani.lolviewback.adapter.outbound.persistence
 
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.ClubProfileRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LogoBackdrop
 import jakarta.persistence.EntityManager

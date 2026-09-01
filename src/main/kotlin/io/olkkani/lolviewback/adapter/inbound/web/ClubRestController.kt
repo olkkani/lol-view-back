@@ -1,6 +1,6 @@
 package io.olkkani.lolviewback.adapter.inbound.web
 
-import io.olkkani.lolviewback.application.match.ClubService
+import io.olkkani.lolviewback.application.service.ClubService
 import io.olkkani.lolviewback.adapter.inbound.web.dto.ClubResponse
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
