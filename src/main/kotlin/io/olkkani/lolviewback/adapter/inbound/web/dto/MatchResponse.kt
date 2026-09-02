@@ -25,22 +25,22 @@ data class MatchClubResponse(
 
 private val KST: ZoneId = ZoneId.of("Asia/Seoul")
 
-fun Match.toResponse(participants: List<MatchParticipant>): MatchResponse {
+fun Match.toResponse(participants: List<MatchParticipant>, scoresByClubId: Map<Long, Int>): MatchResponse {
     return MatchResponse(
         id = requireNotNull(this.id),
         startTime = this.startTime.withZoneSameInstant(KST),
         matchState = this.matchState,
         matchLabel = this.matchLabel,
         leagueName = this.tournament.league.leagueName,
-        clubs = participants.map { it.toClubResponse() },
+        clubs = participants.map { it.toClubResponse(scoresByClubId) },
     )
 }
 
-private fun MatchParticipant.toClubResponse(): MatchClubResponse {
+private fun MatchParticipant.toClubResponse(scoresByClubId: Map<Long, Int>): MatchClubResponse {
     return MatchClubResponse(
         name = this.clubProfile.abbreviation,
         logoUrl = this.clubProfile.logoUrl,
         logoBackdrop = this.clubProfile.logoBackdrop,
-        score = this.score,
+        score = scoresByClubId[this.club.id] ?: 0,
     )
 }

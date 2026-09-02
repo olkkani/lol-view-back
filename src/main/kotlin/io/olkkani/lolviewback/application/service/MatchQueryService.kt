@@ -5,6 +5,7 @@ import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchResponse
 import io.olkkani.lolviewback.adapter.inbound.web.dto.toResponse
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchSetDao
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.time.ZoneId
@@ -15,6 +16,7 @@ private val KST: ZoneId = ZoneId.of("Asia/Seoul")
 class MatchQueryService(
     private val matchRepository: MatchRepository,
     private val matchParticipantRepository: MatchParticipantRepository,
+    private val matchSetDao: MatchSetDao,
 ) {
     fun findMatches(
         range: MatchRange,
@@ -32,8 +34,18 @@ class MatchQueryService(
                 .findByMatchIdIn(matchIds)
                 .groupBy { it.match.id }
 
+        val matchDates = matches.associate { it.id to it.startTime.toLocalDate() }
+        val scoresByMatchId =
+            matchSetDao
+                .findWinCountsByMatchIdIn(matchIds, matchDates)
+                .groupBy { it.matchId }
+                .mapValues { (_, projections) -> projections.associate { it.clubId to it.wins } }
+
         return matches.map { match ->
-            match.toResponse(participantsByMatchId[match.id].orEmpty())
+            match.toResponse(
+                participantsByMatchId[match.id].orEmpty(),
+                scoresByMatchId[match.id].orEmpty(),
+            )
         }
     }
 }
