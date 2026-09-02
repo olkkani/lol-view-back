@@ -50,7 +50,7 @@ class MatchRestControllerTest {
         val response = MatchResponse(
             id = 1L,
             startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
-            matchState = MatchState.ONGOING,
+            matchState = MatchState.IN_PROGRESS,
             matchLabel = "W1",
             leagueName = "LCK",
             clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = LogoBackdrop.DARK, score = 1)),
@@ -71,7 +71,7 @@ class MatchRestControllerTest {
         val response = MatchResponse(
             id = 1L,
             startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
-            matchState = MatchState.ONGOING,
+            matchState = MatchState.IN_PROGRESS,
             matchLabel = "W1",
             leagueName = "LCK",
             clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = null, score = 1)),

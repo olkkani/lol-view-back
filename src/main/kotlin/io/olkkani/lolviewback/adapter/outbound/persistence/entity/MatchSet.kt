@@ -18,13 +18,11 @@ class MatchSet(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "set_win_club_id")
-    val club: Club,
+    var club: Club,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id")
-    val match: Match
-
-
+    var match: Match
 )
 
 

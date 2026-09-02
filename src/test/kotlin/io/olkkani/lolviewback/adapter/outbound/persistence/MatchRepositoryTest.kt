@@ -72,7 +72,7 @@ class MatchRepositoryTest {
     private fun match(startTime: ZonedDateTime, tournament: Tournament) = Match(
         startTime = startTime,
         matchType = MatchType.BO3,
-        matchState = MatchState.SCHEDULED,
+        matchState = MatchState.UNSTARTED,
         matchLabel = "Week 1",
         matchApiId = "match-${startTime.toInstant().toEpochMilli()}",
         tournament = tournament,

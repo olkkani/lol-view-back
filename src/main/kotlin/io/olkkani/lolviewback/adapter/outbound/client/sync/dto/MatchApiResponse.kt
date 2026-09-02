@@ -90,7 +90,7 @@ data class MatchScheduleEventTeam(
     @JsonProperty
     val image: String,
 
-)
+    )
 
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -152,3 +152,14 @@ data class MatchApiTeam(
 data class MatchParticipantApiResponse(
     val id: String,
 )
+
+
+enum class MatchApiState(val value: String) {
+    UNSTARTED("unstarted"),
+    COMPLETED("completed"),
+    IN_PROGRESS("inProgress");
+
+    override fun toString(): String = value
+}
+
+//fun MatchScheduleEventTeam.toMatchParticipantEntity() = MatchParticipantApiResponse()

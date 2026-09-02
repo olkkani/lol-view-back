@@ -46,7 +46,7 @@ class MatchMapperTest {
         assertEquals(ZonedDateTime.parse("2025-06-01T10:00:00Z"), entity.startTime)
         assertEquals("Week 1 Day 1", entity.matchLabel)
         assertEquals(MatchType.BO3, entity.matchType)
-        assertEquals(MatchState.FINISHED, entity.matchState)
+        assertEquals(MatchState.COMPLETED, entity.matchState)
         assertEquals(tournament, entity.tournament)
     }
 
@@ -63,7 +63,7 @@ class MatchMapperTest {
 
         val entity = response.toEntity(tournament)
 
-        assertEquals(MatchState.SCHEDULED, entity.matchState)
+        assertEquals(MatchState.UNSTARTED, entity.matchState)
     }
 
     @Test

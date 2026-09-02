@@ -35,8 +35,8 @@ enum class MatchType {
 }
 
 enum class MatchState {
-    SCHEDULED,
-    ONGOING,
-    FINISHED,
+    UNSTARTED,
+    COMPLETED,
     IN_PROGRESS,
 }
+

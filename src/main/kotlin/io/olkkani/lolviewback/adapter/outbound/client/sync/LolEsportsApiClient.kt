@@ -3,10 +3,12 @@ package io.olkkani.lolviewback.adapter.outbound.client.sync
 import io.olkkani.lolviewback.adapter.config.LolApiProperties
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiResponseWrapper
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEvent
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiResponseWrapper
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponseWrapper
+import io.olkkani.lolviewback.application.outbound.LolApiClientPort
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
@@ -28,11 +30,11 @@ import java.time.Duration
 class LolEsportsApiClient(
     private val properties: LolApiProperties,
     webClientBuilder: WebClient.Builder,
-) {
+): LolApiClientPort {
     private val httpClient = HttpClient.create().responseTimeout(Duration.ofSeconds(10))
     private val webClient = webClientBuilder.clientConnector(ReactorClientHttpConnector(httpClient)).build()
 
-    suspend fun fetchTournaments(leagueApiId: String): List<TournamentApiResponse> {
+    override suspend fun fetchTournaments(leagueApiId: String): List<TournamentApiResponse> {
         val wrapper =
             webClient
                 .get()
@@ -43,7 +45,7 @@ class LolEsportsApiClient(
         return wrapper.data.leagues.flatMap { it.tournaments }
     }
 
-    suspend fun fetchMatchesForLeague(leagueApiId: String): List<MatchApiResponse> {
+    override suspend fun fetchMatchesForLeague(leagueApiId: String): List<MatchApiResponse> {
         val wrapper =
             webClient
                 .get()
@@ -63,15 +65,26 @@ class LolEsportsApiClient(
      * [matchApiId] client-side. Returns null when not found — "not found" is a valid
      * outcome here, not an error.
      */
-    suspend fun fetchMatchDetail(
+    override suspend fun fetchMatchDetail(
         matchApiId: String,
         leagueApiId: String,
     ): MatchApiResponse? =
         fetchMatchesForLeague(leagueApiId)
             .find { it.apiId == matchApiId }
 
+    override suspend fun fetchMatches(leagueApiId: String): List<MatchScheduleEvent> {
+        val wrapper =
+            webClient
+                .get()
+                .uri("${properties.url.match}$leagueApiId")
+                .header("x-api-key", properties.key)
+                .retrieve()
+                .awaitBody<MatchApiResponseWrapper>()
+        return wrapper.data.schedule.events
+    }
 
-    suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse{
+
+    override suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse{
             val wrapper =
                 webClient
                     .get()

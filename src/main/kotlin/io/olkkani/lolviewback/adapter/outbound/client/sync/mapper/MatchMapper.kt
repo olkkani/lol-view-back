@@ -18,8 +18,8 @@ fun MatchApiResponse.toEntity(tournament: Tournament): Match {
 }
 
 private fun mapState(apiState: String): MatchState = when (apiState.lowercase()) {
-    "unstarted" -> MatchState.SCHEDULED
-    "inProgress" -> MatchState.ONGOING
-    "completed" -> MatchState.FINISHED
+    "unstarted" -> MatchState.UNSTARTED
+    "inProgress" -> MatchState.IN_PROGRESS
+    "completed" -> MatchState.COMPLETED
     else -> throw IllegalArgumentException("Unknown match state from API: $apiState")
 }
