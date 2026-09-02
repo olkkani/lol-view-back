@@ -117,7 +117,7 @@ class MatchSetDaoTest {
         matchSetRepository.save(MatchSet(setApiId = "s1", setNumber = 1, club = club, match = m))
         matchSetRepository.save(MatchSet(setApiId = "s2", setNumber = 2, club = club, match = m))
 
-        val result = matchSetDao.findWinCountsByMatchIdIn(listOf(m.id), today)
+        val result = matchSetDao.findWinCountsByMatchIdIn(listOf(m.id), mapOf(m.id to today))
 
         assertEquals(1, result.size)
         assertEquals(2, result[0].wins)
@@ -132,7 +132,7 @@ class MatchSetDaoTest {
 
         matchSetRepository.save(MatchSet(setApiId = "s3", setNumber = 1, club = club, match = m))
 
-        val result = matchSetDao.findWinCountsByMatchIdIn(listOf(m.id), today)
+        val result = matchSetDao.findWinCountsByMatchIdIn(listOf(m.id), mapOf(m.id to today))
 
         assertEquals(1, result.size)
         assertEquals(1, result[0].wins)
@@ -141,8 +141,46 @@ class MatchSetDaoTest {
 
     @Test
     fun `empty match id list returns an empty result without querying`() {
-        val result = matchSetDao.findWinCountsByMatchIdIn(emptyList(), today)
+        val result = matchSetDao.findWinCountsByMatchIdIn(emptyList(), emptyMap())
 
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `abbreviation reflects the club's branding as of the match's own date, not today`() {
+        val t = tournament()
+        val m = match(t, "m3")
+        val club = clubRepository.save(Club(isActive = true))
+
+        // Old branding, active only during the match's era.
+        clubProfileRepository.save(
+            ClubProfile(
+                clubName = "SKT T1",
+                abbreviation = "SKT",
+                logoUrl = "https://example.com/skt.png",
+                effectiveFrom = LocalDate.of(2015, 1, 1),
+                effectiveTo = LocalDate.of(2020, 1, 1),
+                club = club,
+            ),
+        )
+        // Current branding, active only from 2020 onward — i.e. active "today" (2026-08-31).
+        clubProfileRepository.save(
+            ClubProfile(
+                clubName = "T1",
+                abbreviation = "T1",
+                logoUrl = "https://example.com/t1.png",
+                effectiveFrom = LocalDate.of(2020, 1, 1),
+                effectiveTo = LocalDate.of(2099, 1, 1),
+                club = club,
+            ),
+        )
+
+        matchSetRepository.save(MatchSet(setApiId = "s4", setNumber = 1, club = club, match = m))
+
+        val matchPlayedDate = LocalDate.of(2017, 6, 1)
+        val result = matchSetDao.findWinCountsByMatchIdIn(listOf(m.id), mapOf(m.id to matchPlayedDate))
+
+        assertEquals(1, result.size)
+        assertEquals("SKT", result[0].abbreviation)
     }
 }

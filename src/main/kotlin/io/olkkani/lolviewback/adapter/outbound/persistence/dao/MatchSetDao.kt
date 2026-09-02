@@ -4,6 +4,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.projection.MatchSetPr
 import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.generated.Tables
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.count
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
@@ -18,11 +19,18 @@ class MatchSetDao(
 
     fun findWinCountsByMatchIdIn(
         matchIds: List<Long>,
-        today: LocalDate = LocalDate.now(),
+        matchDates: Map<Long, LocalDate>,
     ): List<MatchSetProjection> {
-        if (matchIds.isEmpty()) return emptyList()
+        if (matchIds.isEmpty() || matchDates.isEmpty()) return emptyList()
 
         val winsField: Field<Int> = count().`as`("wins")
+        val matchDateEntries = matchDates.entries.toList()
+        val firstEntry = matchDateEntries.first()
+        var caseStep = DSL.choose(matchSet.MATCH_ID).`when`(firstEntry.key, DSL.`val`(firstEntry.value))
+        for (entry in matchDateEntries.drop(1)) {
+            caseStep = caseStep.`when`(entry.key, DSL.`val`(entry.value))
+        }
+        val matchDate = caseStep.otherwise(DSL.inline(null as LocalDate?))
 
         return dsl
             .select(
@@ -34,8 +42,8 @@ class MatchSetDao(
             .leftJoin(clubProfiles)
             .on(
                 clubProfiles.CLUB_ID.eq(matchSet.SET_WIN_CLUB_ID)
-                    .and(clubProfiles.EFFECTIVE_FROM.le(today))
-                    .and(clubProfiles.EFFECTIVE_TO.isNull.or(clubProfiles.EFFECTIVE_TO.gt(today))),
+                    .and(clubProfiles.EFFECTIVE_FROM.le(matchDate))
+                    .and(clubProfiles.EFFECTIVE_TO.isNull.or(clubProfiles.EFFECTIVE_TO.gt(matchDate))),
             ).where(matchSet.MATCH_ID.`in`(matchIds))
             .groupBy(matchSet.MATCH_ID, matchSet.SET_WIN_CLUB_ID, clubProfiles.ABBREVIATION)
             .fetch { record ->
