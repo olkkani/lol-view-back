@@ -125,8 +125,8 @@ class MatchQueryServiceTest {
             effectiveTo = LocalDate.of(2099, 1, 1),
         )
         val participants = listOf(
-            MatchParticipant(id = 1L, isWin = null, score = 0, match = match, club = Club(id = 10L, isActive = true), clubProfile = t1ClubProfile),
-            MatchParticipant(id = 2L, isWin = null, score = 0, match = match, club = Club(id = 20L, isActive = true), clubProfile = genClubProfile),
+            MatchParticipant(id = 1L, match = match, club = Club(id = 10L, isActive = true), clubProfile = t1ClubProfile),
+            MatchParticipant(id = 2L, match = match, club = Club(id = 20L, isActive = true), clubProfile = genClubProfile),
         )
 
         every {

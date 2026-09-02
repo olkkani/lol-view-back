@@ -71,10 +71,10 @@ class MatchParticipantRepositoryTest {
     fun `findByMatchIdIn returns participants for given match ids only`() {
         val t = tournament()
         val match1 = matchRepository.save(
-            Match(startTime = ZonedDateTime.now(kst), matchType = MatchType.BO3, matchState = MatchState.SCHEDULED, matchLabel = "W1", matchApiId = "m1", tournament = t),
+            Match(startTime = ZonedDateTime.now(kst), matchType = MatchType.BO3, matchState = MatchState.UNSTARTED, matchLabel = "W1", matchApiId = "m1", tournament = t),
         )
         val match2 = matchRepository.save(
-            Match(startTime = ZonedDateTime.now(kst), matchType = MatchType.BO3, matchState = MatchState.SCHEDULED, matchLabel = "W1", matchApiId = "m2", tournament = t),
+            Match(startTime = ZonedDateTime.now(kst), matchType = MatchType.BO3, matchState = MatchState.UNSTARTED, matchLabel = "W1", matchApiId = "m2", tournament = t),
         )
 
         val club = clubRepository.save(Club(isActive = true))
@@ -90,10 +90,10 @@ class MatchParticipantRepositoryTest {
         )
 
         val p1 = matchParticipantRepository.save(
-            MatchParticipant(isWin = null, score = 0, match = match1, club = club, clubProfile = profile),
+            MatchParticipant(match = match1, club = club, clubProfile = profile),
         )
         matchParticipantRepository.save(
-            MatchParticipant(isWin = null, score = 0, match = match2, club = club, clubProfile = profile),
+            MatchParticipant(match = match2, club = club, clubProfile = profile),
         )
 
         val result = matchParticipantRepository.findByMatchIdIn(listOf(match1.id!!))

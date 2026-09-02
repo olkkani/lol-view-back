@@ -106,8 +106,6 @@ class MatchResponseTest {
         )
         val participant = MatchParticipant(
             id = 1L,
-            isWin = null,
-            score = 1,
             match = match,
             club = Club(id = 1L, isActive = true),
             clubProfile = clubProfile,
