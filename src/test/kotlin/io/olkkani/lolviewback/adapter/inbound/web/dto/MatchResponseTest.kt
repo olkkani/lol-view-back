@@ -41,13 +41,13 @@ class MatchResponseTest {
             id = 1L,
             startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
             matchType = MatchType.BO3,
-            matchState = MatchState.SCHEDULED,
+            matchState = MatchState.UNSTARTED,
             matchLabel = "W1",
             matchApiId = "m1",
             tournament = tournament,
         )
 
-        val result = match.toResponse(emptyList())
+        val result = match.toResponse(emptyList(), emptyMap())
 
         assertEquals("LCK", result.leagueName)
     }
@@ -56,7 +56,7 @@ class MatchResponseTest {
     fun `toResponse carries the club profile's logoBackdrop through`() {
         val match = matchWithParticipant(logoBackdrop = LogoBackdrop.DARK)
 
-        val result = match.first.toResponse(listOf(match.second))
+        val result = match.first.toResponse(listOf(match.second), mapOf(1L to 1))
 
         assertEquals(LogoBackdrop.DARK, result.clubs[0].logoBackdrop)
     }
@@ -65,7 +65,7 @@ class MatchResponseTest {
     fun `toResponse carries a null logoBackdrop through unchanged`() {
         val match = matchWithParticipant(logoBackdrop = null)
 
-        val result = match.first.toResponse(listOf(match.second))
+        val result = match.first.toResponse(listOf(match.second), mapOf(1L to 1))
 
         assertNull(result.clubs[0].logoBackdrop)
     }
@@ -90,7 +90,7 @@ class MatchResponseTest {
             id = 1L,
             startTime = ZonedDateTime.of(2026, 8, 12, 18, 0, 0, 0, kst),
             matchType = MatchType.BO3,
-            matchState = MatchState.SCHEDULED,
+            matchState = MatchState.UNSTARTED,
             matchLabel = "W1",
             matchApiId = "m1",
             tournament = tournament,
