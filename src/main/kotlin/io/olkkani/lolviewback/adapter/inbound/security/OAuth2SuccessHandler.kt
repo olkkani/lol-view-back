@@ -3,10 +3,12 @@ package io.olkkani.lolviewback.adapter.inbound.security
 import io.olkkani.lolviewback.application.auth.AuthProvider
 import io.olkkani.lolviewback.application.auth.IdentityAlreadyLinkedException
 import io.olkkani.lolviewback.application.auth.JwtService
+import io.olkkani.lolviewback.application.auth.RefreshTokenService
 import io.olkkani.lolviewback.application.auth.ResolveIdentityService
 import io.olkkani.lolviewback.application.auth.ResolveResult
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
@@ -17,6 +19,9 @@ import org.springframework.stereotype.Component
 class OAuth2SuccessHandler(
     private val resolveIdentityService: ResolveIdentityService,
     private val jwtService: JwtService,
+    private val refreshTokenService: RefreshTokenService,
+    @Value("\${jwt.access-expiration-minutes}") private val accessExpirationMinutes: Long,
+    @Value("\${jwt.refresh-expiration-days}") private val refreshExpirationDays: Long,
 ) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(
@@ -45,8 +50,17 @@ class OAuth2SuccessHandler(
             }
         }
 
-        val token = jwtService.issueToken(userId)
-        response.contentType = "application/json"
-        response.writer.write("""{"token":"$token"}""")
+        val accessToken = jwtService.issueToken(userId)
+        val refreshToken = refreshTokenService.issue(userId)
+
+        response.addHeader(
+            "Set-Cookie",
+            CookieSupport.buildAccessTokenCookie(accessToken, accessExpirationMinutes * 60).toString(),
+        )
+        response.addHeader(
+            "Set-Cookie",
+            CookieSupport.buildRefreshTokenCookie(refreshToken, refreshExpirationDays * 86_400).toString(),
+        )
+        response.sendRedirect("/")
     }
 }
