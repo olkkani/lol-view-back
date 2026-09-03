@@ -88,4 +88,37 @@ class JwtAuthenticationFilterTest {
         verify { request.setAttribute("jwt.parse.result", JwtParseResult.Expired) }
         assertNull(SecurityContextHolder.getContext().authentication)
     }
+
+    @Test
+    fun `a valid access_token cookie authenticates when no Authorization header is present`() {
+        every { jwtService.parseResult("cookie-token") } returns JwtParseResult.Valid(42L)
+        val request = mockk<HttpServletRequest>(relaxed = true)
+        every { request.getHeader("Authorization") } returns null
+        every { request.cookies } returns arrayOf(jakarta.servlet.http.Cookie("access_token", "cookie-token"))
+        every { request.dispatcherType } returns DispatcherType.REQUEST
+        every { request.getAttribute(any()) } returns null
+        val response = mockk<HttpServletResponse>()
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals("42", SecurityContextHolder.getContext().authentication?.principal)
+        verify { chain.doFilter(request, response) }
+    }
+
+    @Test
+    fun `the Authorization header takes precedence over the access_token cookie when both are present`() {
+        every { jwtService.parseResult("header-token") } returns JwtParseResult.Valid(7L)
+        val request = mockk<HttpServletRequest>(relaxed = true)
+        every { request.getHeader("Authorization") } returns "Bearer header-token"
+        every { request.cookies } returns arrayOf(jakarta.servlet.http.Cookie("access_token", "should-not-be-used"))
+        every { request.dispatcherType } returns DispatcherType.REQUEST
+        every { request.getAttribute(any()) } returns null
+        val response = mockk<HttpServletResponse>()
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        filter.doFilter(request, response, chain)
+
+        assertEquals("7", SecurityContextHolder.getContext().authentication?.principal)
+    }
 }

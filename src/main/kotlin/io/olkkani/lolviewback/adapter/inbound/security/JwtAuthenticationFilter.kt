@@ -20,9 +20,8 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        val header = request.getHeader("Authorization")
-        if (header != null && header.startsWith("Bearer ")) {
-            val token = header.removePrefix("Bearer ")
+        val token = extractToken(request)
+        if (token != null) {
             when (val result = jwtService.parseResult(token)) {
                 is JwtParseResult.Valid -> {
                     val authentication = UsernamePasswordAuthenticationToken(result.userId.toString(), null, emptyList())
@@ -32,5 +31,13 @@ class JwtAuthenticationFilter(
             }
         }
         filterChain.doFilter(request, response)
+    }
+
+    private fun extractToken(request: HttpServletRequest): String? {
+        val header = request.getHeader("Authorization")
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.removePrefix("Bearer ")
+        }
+        return request.cookies?.firstOrNull { it.name == "access_token" }?.value
     }
 }
