@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationFilter
+import io.olkkani.lolviewback.application.auth.JwtParseResult
 import io.olkkani.lolviewback.application.auth.JwtService
 import jakarta.servlet.DispatcherType
 import jakarta.servlet.FilterChain
@@ -27,7 +28,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `a valid bearer token sets the authenticated user id in the security context`() {
-        every { jwtService.parseUserId("valid-token") } returns 42L
+        every { jwtService.parseResult("valid-token") } returns JwtParseResult.Valid(42L)
         val request = mockk<HttpServletRequest>(relaxed = true)
         every { request.getHeader("Authorization") } returns "Bearer valid-token"
         every { request.dispatcherType } returns DispatcherType.REQUEST
@@ -58,7 +59,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `an invalid or expired token leaves the security context empty and continues the chain`() {
-        every { jwtService.parseUserId("bad-token") } returns null
+        every { jwtService.parseResult("bad-token") } returns JwtParseResult.Invalid
         val request = mockk<HttpServletRequest>(relaxed = true)
         every { request.getHeader("Authorization") } returns "Bearer bad-token"
         every { request.dispatcherType } returns DispatcherType.REQUEST
@@ -70,5 +71,21 @@ class JwtAuthenticationFilterTest {
 
         assertNull(SecurityContextHolder.getContext().authentication)
         verify { chain.doFilter(request, response) }
+    }
+
+    @Test
+    fun `an expired token sets a jwt-parse-result request attribute so the entry point can distinguish it`() {
+        every { jwtService.parseResult("expired-token") } returns JwtParseResult.Expired
+        val request = mockk<HttpServletRequest>(relaxed = true)
+        every { request.getHeader("Authorization") } returns "Bearer expired-token"
+        every { request.dispatcherType } returns DispatcherType.REQUEST
+        every { request.getAttribute(any()) } returns null
+        val response = mockk<HttpServletResponse>()
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        filter.doFilter(request, response, chain)
+
+        verify { request.setAttribute("jwt.parse.result", JwtParseResult.Expired) }
+        assertNull(SecurityContextHolder.getContext().authentication)
     }
 }

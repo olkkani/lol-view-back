@@ -1,5 +1,6 @@
 package io.olkkani.lolviewback.adapter.inbound.security
 
+import io.olkkani.lolviewback.application.auth.JwtParseResult
 import io.olkkani.lolviewback.application.auth.JwtService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -22,10 +23,12 @@ class JwtAuthenticationFilter(
         val header = request.getHeader("Authorization")
         if (header != null && header.startsWith("Bearer ")) {
             val token = header.removePrefix("Bearer ")
-            val userId = jwtService.parseUserId(token)
-            if (userId != null) {
-                val authentication = UsernamePasswordAuthenticationToken(userId.toString(), null, emptyList())
-                SecurityContextHolder.getContext().authentication = authentication
+            when (val result = jwtService.parseResult(token)) {
+                is JwtParseResult.Valid -> {
+                    val authentication = UsernamePasswordAuthenticationToken(result.userId.toString(), null, emptyList())
+                    SecurityContextHolder.getContext().authentication = authentication
+                }
+                else -> request.setAttribute("jwt.parse.result", result)
             }
         }
         filterChain.doFilter(request, response)
