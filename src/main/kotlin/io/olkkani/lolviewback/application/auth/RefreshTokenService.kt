@@ -44,7 +44,8 @@ class RefreshTokenService(
 
         val secondsSinceRevoke = java.time.Duration.between(existing.revokedAt, LocalDateTime.now()).seconds
         if (secondsSinceRevoke <= gracePeriodSeconds) {
-            return RotateResult.GracePeriodReuse(existing.userId, generateRawToken())
+            val newRawToken = issue(existing.userId)
+            return RotateResult.GracePeriodReuse(existing.userId, newRawToken)
         }
 
         repository.revokeAllForUser(existing.userId, LocalDateTime.now())

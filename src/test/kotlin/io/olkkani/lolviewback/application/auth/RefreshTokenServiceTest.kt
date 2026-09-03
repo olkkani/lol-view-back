@@ -72,11 +72,15 @@ class RefreshTokenServiceTest {
             revokedAt = LocalDateTime.now().minusSeconds(5),
         )
         every { repository.findByTokenHashForUpdate(any()) } returns existing
+        val savedSlot = slot<RefreshToken>()
+        every { repository.save(capture(savedSlot)) } answers { savedSlot.captured }
 
         val result = service.rotate("reused-raw-token")
 
         assertTrue(result is RotateResult.GracePeriodReuse)
         assertEquals(42L, (result as RotateResult.GracePeriodReuse).userId)
+        assertTrue(result.reissuedRawToken.isNotBlank())
+        assertEquals(42L, savedSlot.captured.userId)
     }
 
     @Test
