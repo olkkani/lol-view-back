@@ -38,6 +38,7 @@ class SecurityConfig(
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/refresh", "/auth/logout").permitAll()
                     .requestMatchers(HttpMethod.GET, "/matches").permitAll()
                     .requestMatchers("/actuator/health/**").permitAll()
                     .anyRequest().authenticated()
