@@ -1,16 +1,15 @@
 package io.olkkani.lolviewback.adapter.config
 
+import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationEntryPoint
 import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationFilter
 import io.olkkani.lolviewback.adapter.inbound.security.OAuth2FailureHandler
 import io.olkkani.lolviewback.adapter.inbound.security.OAuth2SuccessHandler
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter
 import org.springframework.web.cors.CorsConfiguration
@@ -21,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint,
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
     private val oAuth2FailureHandler: OAuth2FailureHandler,
 ) {
@@ -48,7 +48,7 @@ class SecurityConfig(
                 // whenever oauth2Login() is configured. This API is token-based
                 // (JwtAuthenticationFilter), so unauthenticated requests to protected
                 // endpoints must return 401, not a login-page redirect.
-                exceptionHandling.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
             }
             .oauth2Login { oauth2 ->
                 oauth2
