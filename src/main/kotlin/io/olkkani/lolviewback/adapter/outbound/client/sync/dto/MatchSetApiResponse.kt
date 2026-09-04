@@ -8,7 +8,7 @@ data class MatchSetApiResponseWrapper(
 )
 
 data class MatchSetEventDataResponse(
-    val event: MatchSetApiResponse
+    val event: MatchSetApiResponse? = null
 )
 
 // ── 실제 도메인 계층 구조 (Wrapper 아님, 매치 자체의 depth)

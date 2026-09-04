@@ -48,7 +48,7 @@ class PollMatchSetService(
         match: Match,
         savedMatchSets: List<MatchSetProjection>,
     ) {
-        val apiInProgressSetResponse = apiClientPort.fetchMatchSet(match.matchApiId)
+        val apiInProgressSetResponse = apiClientPort.fetchMatchSet(match.matchApiId) ?: return
         val apiInProgressMatchData = apiInProgressSetResponse.match
         val apiMatchTeams = apiInProgressMatchData.teams
         val apiMatchSets = apiInProgressMatchData.games

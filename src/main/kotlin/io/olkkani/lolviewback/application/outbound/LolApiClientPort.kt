@@ -11,5 +11,5 @@ interface LolApiClientPort {
     suspend fun fetchMatchesForLeague(leagueApiId: String): List<MatchApiResponse>
     suspend fun fetchMatchDetail(matchApiId: String, leagueApiId: String): MatchApiResponse?
     suspend fun fetchMatches(leagueApiId: String): List<MatchScheduleEvent>
-    suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse
+    suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse?
 }

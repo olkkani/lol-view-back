@@ -84,7 +84,7 @@ class LolEsportsApiClient(
     }
 
 
-    override suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse{
+    override suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse? {
             val wrapper =
                 webClient
                     .get()
