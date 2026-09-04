@@ -61,6 +61,9 @@ class OAuth2SuccessHandler(
             "Set-Cookie",
             CookieSupport.buildRefreshTokenCookie(refreshToken, refreshExpirationDays * 86_400).toString(),
         )
+        // Placeholder redirect target — no frontend callback URL exists in this codebase yet.
+        // Replace with the real post-login destination (or make it configurable via
+        // a property) once the frontend integration path is confirmed.
         response.sendRedirect("/")
     }
 }

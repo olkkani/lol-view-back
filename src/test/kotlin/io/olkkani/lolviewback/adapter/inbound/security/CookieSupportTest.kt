@@ -7,14 +7,14 @@ import org.junit.jupiter.api.Test
 class CookieSupportTest {
 
     @Test
-    fun `access token cookie is httpOnly, secure, path-scoped to auth, and carries the value`() {
+    fun `access token cookie is httpOnly, secure, path-scoped to root, and carries the value`() {
         val cookie = CookieSupport.buildAccessTokenCookie("access-value", maxAgeSeconds = 1800)
 
         assertEquals("access_token", cookie.name)
         assertEquals("access-value", cookie.value)
         assertTrue(cookie.isHttpOnly)
         assertTrue(cookie.isSecure)
-        assertEquals("/auth", cookie.path)
+        assertEquals("/", cookie.path)
         assertEquals("Lax", cookie.sameSite)
         assertEquals(1800, cookie.maxAge.seconds)
     }
@@ -26,14 +26,26 @@ class CookieSupportTest {
         assertEquals("refresh_token", cookie.name)
         assertEquals("refresh-value", cookie.value)
         assertTrue(cookie.isHttpOnly)
+        assertEquals("/auth", cookie.path)
     }
 
     @Test
-    fun `expired cookies carry a zero max-age and blank value to clear the browser copy`() {
+    fun `expired refresh cookie carries a zero max-age, blank value, and matches the original path to clear the browser copy`() {
         val cookie = CookieSupport.expiredRefreshTokenCookie()
 
         assertEquals("refresh_token", cookie.name)
         assertEquals("", cookie.value)
         assertEquals(0, cookie.maxAge.seconds)
+        assertEquals("/auth", cookie.path)
+    }
+
+    @Test
+    fun `expired access cookie carries a zero max-age, blank value, and matches the original path to clear the browser copy`() {
+        val cookie = CookieSupport.expiredAccessTokenCookie()
+
+        assertEquals("access_token", cookie.name)
+        assertEquals("", cookie.value)
+        assertEquals(0, cookie.maxAge.seconds)
+        assertEquals("/", cookie.path)
     }
 }

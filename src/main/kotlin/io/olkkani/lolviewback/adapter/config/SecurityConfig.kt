@@ -35,6 +35,7 @@ class SecurityConfig(
                 header.frameOptions { it.deny() }
             }
             .csrf { it.disable() }
+            .cors { it.configurationSource(corsConfigurationSourceLocal()) }
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
@@ -63,7 +64,7 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSourceLocal(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOrigins = listOf("http://localhost:80, https://gemspi.kro.kr/, http://ngnix:80")
+            allowedOrigins = listOf("http://localhost:80", "https://gemspi.kro.kr", "http://ngnix:80")
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

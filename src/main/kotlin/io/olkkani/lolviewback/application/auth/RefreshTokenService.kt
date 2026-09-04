@@ -18,6 +18,7 @@ class RefreshTokenService(
 ) {
     private val secureRandom = SecureRandom()
 
+    @Transactional
     fun issue(userId: Long): String {
         val rawToken = generateRawToken()
         repository.save(
@@ -52,10 +53,13 @@ class RefreshTokenService(
         return RotateResult.TheftDetected
     }
 
+    @Transactional
     fun revoke(rawToken: String) {
         val existing = repository.findByTokenHash(hash(rawToken)) ?: return
-        existing.revokedAt = LocalDateTime.now()
-        repository.save(existing)
+        if (existing.revokedAt == null) {
+            existing.revokedAt = LocalDateTime.now()
+            repository.save(existing)
+        }
     }
 
     fun hash(rawToken: String): String {
