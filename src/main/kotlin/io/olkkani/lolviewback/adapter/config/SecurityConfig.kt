@@ -4,6 +4,8 @@ import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationEntryPoi
 import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationFilter
 import io.olkkani.lolviewback.adapter.inbound.security.OAuth2FailureHandler
 import io.olkkani.lolviewback.adapter.inbound.security.OAuth2SuccessHandler
+import io.olkkani.lolviewback.adapter.inbound.security.PostLoginRedirectAuthorizationRequestResolver
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -23,6 +25,8 @@ class SecurityConfig(
     private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint,
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
     private val oAuth2FailureHandler: OAuth2FailureHandler,
+    private val postLoginRedirectAuthorizationRequestResolver: PostLoginRedirectAuthorizationRequestResolver,
+    @Value("\${app.cors.allowed-origins}") private val allowedOrigins: List<String>,
 ) {
 
     @Bean
@@ -35,7 +39,7 @@ class SecurityConfig(
                 header.frameOptions { it.deny() }
             }
             .csrf { it.disable() }
-            .cors { it.configurationSource(corsConfigurationSourceLocal()) }
+            .cors { it.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
@@ -54,6 +58,9 @@ class SecurityConfig(
             }
             .oauth2Login { oauth2 ->
                 oauth2
+                    .authorizationEndpoint { endpoint ->
+                        endpoint.authorizationRequestResolver(postLoginRedirectAuthorizationRequestResolver)
+                    }
                     .successHandler(oAuth2SuccessHandler)
                     .failureHandler(oAuth2FailureHandler)
             }
@@ -62,9 +69,9 @@ class SecurityConfig(
     }
 
     @Bean
-    fun corsConfigurationSourceLocal(): CorsConfigurationSource {
+    fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOrigins = listOf("http://localhost:80", "https://gemspi.kro.kr", "http://ngnix:80")
+            allowedOrigins = this@SecurityConfig.allowedOrigins
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true
