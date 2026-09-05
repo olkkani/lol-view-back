@@ -3,6 +3,8 @@ package io.olkkani.lolviewback.adapter.inbound.web
 import io.olkkani.lolviewback.adapter.inbound.security.CookieSupport
 import io.olkkani.lolviewback.adapter.inbound.web.dto.UserIdentityResponse
 import io.olkkani.lolviewback.adapter.outbound.persistence.UserIdentityRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.UserRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Role
 import io.olkkani.lolviewback.application.auth.JwtService
 import io.olkkani.lolviewback.application.auth.RefreshTokenService
 import io.olkkani.lolviewback.application.auth.RotateResult
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/auth")
 class AuthRestController(
     private val userIdentityRepository: UserIdentityRepository,
+    private val userRepository: UserRepository,
     private val jwtService: JwtService,
     private val refreshTokenService: RefreshTokenService,
     @Value("\${jwt.access-expiration-minutes}") private val accessExpirationMinutes: Long,
@@ -62,7 +65,10 @@ class AuthRestController(
     }
 
     private fun issueNewCookies(response: HttpServletResponse, userId: Long, newRawRefreshToken: String) {
-        val accessToken = jwtService.issueToken(userId)
+        // Role is re-read from the DB on every refresh (not carried from the old token) so a
+        // promotion or demotion takes effect on the next refresh cycle, not just the next login.
+        val role = userRepository.findById(userId).map { it.role }.orElse(Role.USER)
+        val accessToken = jwtService.issueToken(userId, role)
         response.addHeader(
             "Set-Cookie",
             CookieSupport.buildAccessTokenCookie(accessToken, accessExpirationMinutes * 60).toString(),

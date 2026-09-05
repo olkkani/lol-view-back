@@ -1,5 +1,6 @@
 package io.olkkani.lolviewback.adapter.config
 
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Role
 import io.olkkani.lolviewback.application.auth.JwtService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -41,7 +42,7 @@ class SecurityConfigTest {
 
     @Test
     fun `a request with a valid bearer token is authenticated`() {
-        val token = jwtService.issueToken(userId = 1L)
+        val token = jwtService.issueToken(userId = 1L, role = Role.USER)
 
         mockMvc.get("/clubs") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $token")
