@@ -1,8 +1,11 @@
 package io.olkkani.lolviewback.adapter.outbound.persistence
 
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Club
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LogoBackdrop
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.data.domain.PageRequest
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -77,6 +81,141 @@ class MatchRepositoryTest {
         matchApiId = "match-${startTime.toInstant().toEpochMilli()}",
         tournament = tournament,
     )
+
+    private fun completedMatch(startTime: ZonedDateTime, tournament: Tournament) = Match(
+        startTime = startTime,
+        matchType = MatchType.BO3,
+        matchState = MatchState.COMPLETED,
+        matchLabel = "Week 1",
+        matchApiId = "match-${startTime.toInstant().toEpochMilli()}-${java.util.UUID.randomUUID()}",
+        tournament = tournament,
+    )
+
+    private fun clubProfileFor(club: Club, name: String) = ClubProfile(
+        clubName = name,
+        abbreviation = name,
+        logoUrl = "https://example.com/${name.lowercase()}.png",
+        effectiveFrom = LocalDate.of(2020, 1, 1),
+        effectiveTo = LocalDate.of(2099, 1, 1),
+        club = club,
+    )
+
+    @Test
+    fun `findHeadToHeadBefore returns only matches where both clubs participated`() {
+        val t = tournament()
+        val clubA = Club(isActive = true)
+        val clubB = Club(isActive = true)
+        val clubC = Club(isActive = true)
+        entityManager.persist(clubA)
+        entityManager.persist(clubB)
+        entityManager.persist(clubC)
+        val profileA = clubProfileFor(clubA, "A")
+        val profileB = clubProfileFor(clubB, "B")
+        val profileC = clubProfileFor(clubC, "C")
+        entityManager.persist(profileA)
+        entityManager.persist(profileB)
+        entityManager.persist(profileC)
+
+        val abMatch = matchRepository.save(completedMatch(ZonedDateTime.of(2026, 8, 1, 10, 0, 0, 0, kst), t))
+        entityManager.persist(MatchParticipant(match = abMatch, club = clubA, clubProfile = profileA))
+        entityManager.persist(MatchParticipant(match = abMatch, club = clubB, clubProfile = profileB))
+
+        val acMatch = matchRepository.save(completedMatch(ZonedDateTime.of(2026, 8, 2, 10, 0, 0, 0, kst), t))
+        entityManager.persist(MatchParticipant(match = acMatch, club = clubA, clubProfile = profileA))
+        entityManager.persist(MatchParticipant(match = acMatch, club = clubC, clubProfile = profileC))
+        matchRepository.flush()
+
+        val result = matchRepository.findHeadToHeadBefore(
+            clubA.id, clubB.id,
+            ZonedDateTime.of(2026, 12, 31, 0, 0, 0, 0, kst),
+            PageRequest.of(0, 5),
+        )
+
+        assertEquals(listOf(abMatch.id), result.map { it.id })
+    }
+
+    @Test
+    fun `findHeadToHeadBefore excludes matches at or after beforeStartTime`() {
+        val t = tournament()
+        val clubA = Club(isActive = true)
+        val clubB = Club(isActive = true)
+        entityManager.persist(clubA)
+        entityManager.persist(clubB)
+        val profileA = clubProfileFor(clubA, "A")
+        val profileB = clubProfileFor(clubB, "B")
+        entityManager.persist(profileA)
+        entityManager.persist(profileB)
+
+        val cutoff = ZonedDateTime.of(2026, 8, 12, 0, 0, 0, 0, kst)
+        val before = matchRepository.save(completedMatch(cutoff.minusDays(1), t))
+        entityManager.persist(MatchParticipant(match = before, club = clubA, clubProfile = profileA))
+        entityManager.persist(MatchParticipant(match = before, club = clubB, clubProfile = profileB))
+
+        val atCutoff = matchRepository.save(completedMatch(cutoff, t))
+        entityManager.persist(MatchParticipant(match = atCutoff, club = clubA, clubProfile = profileA))
+        entityManager.persist(MatchParticipant(match = atCutoff, club = clubB, clubProfile = profileB))
+        matchRepository.flush()
+
+        val result = matchRepository.findHeadToHeadBefore(clubA.id, clubB.id, cutoff, PageRequest.of(0, 5))
+
+        assertEquals(listOf(before.id), result.map { it.id })
+    }
+
+    @Test
+    fun `findHeadToHeadBefore excludes non-COMPLETED matches`() {
+        val t = tournament()
+        val clubA = Club(isActive = true)
+        val clubB = Club(isActive = true)
+        entityManager.persist(clubA)
+        entityManager.persist(clubB)
+        val profileA = clubProfileFor(clubA, "A")
+        val profileB = clubProfileFor(clubB, "B")
+        entityManager.persist(profileA)
+        entityManager.persist(profileB)
+
+        val unstarted = matchRepository.save(match(ZonedDateTime.of(2026, 8, 1, 10, 0, 0, 0, kst), t))
+        entityManager.persist(MatchParticipant(match = unstarted, club = clubA, clubProfile = profileA))
+        entityManager.persist(MatchParticipant(match = unstarted, club = clubB, clubProfile = profileB))
+        matchRepository.flush()
+
+        val result = matchRepository.findHeadToHeadBefore(
+            clubA.id, clubB.id,
+            ZonedDateTime.of(2026, 12, 31, 0, 0, 0, 0, kst),
+            PageRequest.of(0, 5),
+        )
+
+        assertEquals(emptyList<Long>(), result.map { it.id })
+    }
+
+    @Test
+    fun `findHeadToHeadBefore returns at most 5 matches ordered by startTime descending`() {
+        val t = tournament()
+        val clubA = Club(isActive = true)
+        val clubB = Club(isActive = true)
+        entityManager.persist(clubA)
+        entityManager.persist(clubB)
+        val profileA = clubProfileFor(clubA, "A")
+        val profileB = clubProfileFor(clubB, "B")
+        entityManager.persist(profileA)
+        entityManager.persist(profileB)
+
+        val matches = (1..6).map { day ->
+            val m = matchRepository.save(completedMatch(ZonedDateTime.of(2026, 8, day, 10, 0, 0, 0, kst), t))
+            entityManager.persist(MatchParticipant(match = m, club = clubA, clubProfile = profileA))
+            entityManager.persist(MatchParticipant(match = m, club = clubB, clubProfile = profileB))
+            m
+        }
+        matchRepository.flush()
+
+        val result = matchRepository.findHeadToHeadBefore(
+            clubA.id, clubB.id,
+            ZonedDateTime.of(2026, 12, 31, 0, 0, 0, 0, kst),
+            PageRequest.of(0, 5),
+        )
+
+        assertEquals(5, result.size)
+        assertEquals(matches.reversed().take(5).map { it.id }, result.map { it.id })
+    }
 
     @Test
     fun `findByStartTime range returns matches within range only`() {
