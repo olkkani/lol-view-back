@@ -4,7 +4,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.olkkani.lolviewback.application.auth.JwtService
 import io.olkkani.lolviewback.application.service.MatchQueryService
+import io.olkkani.lolviewback.adapter.inbound.web.dto.HeadToHeadResponse
+import io.olkkani.lolviewback.adapter.inbound.web.dto.InvalidHeadToHeadRequestException
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchClubResponse
+import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchNotFoundException
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchResponse
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LogoBackdrop
@@ -112,5 +115,55 @@ class MatchRestControllerTest {
             mockMvc.get("/matches?range=today")
         }
         assertEquals("internal failure", thrown.cause?.message)
+    }
+
+    @Test
+    fun `GET matches id head-to-head returns 200 with the win order`() {
+        every { matchQueryService.findHeadToHead(100L) } returns listOf(
+            HeadToHeadResponse(matchId = 1L, winnerClubId = 10L),
+            HeadToHeadResponse(matchId = 2L, winnerClubId = 20L),
+        )
+
+        mockMvc.get("/matches/100/head-to-head")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$[0].matchId") { value(1) }
+                jsonPath("$[0].winnerClubId") { value(10) }
+                jsonPath("$[1].matchId") { value(2) }
+            }
+    }
+
+    @Test
+    fun `GET matches id head-to-head returns 404 when the match does not exist`() {
+        every { matchQueryService.findHeadToHead(999L) } throws MatchNotFoundException("Match not found: 999")
+
+        mockMvc.get("/matches/999/head-to-head")
+            .andExpect {
+                status { isNotFound() }
+                jsonPath("$.error") { value("Match not found: 999") }
+            }
+    }
+
+    @Test
+    fun `GET matches id head-to-head returns 400 when the match has a data-integrity problem`() {
+        every { matchQueryService.findHeadToHead(100L) } throws
+            InvalidHeadToHeadRequestException("Match 100 does not have exactly 2 distinct club participants: found [10]")
+
+        mockMvc.get("/matches/100/head-to-head")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error") { value("Match 100 does not have exactly 2 distinct club participants: found [10]") }
+            }
+    }
+
+    @Test
+    fun `GET matches id head-to-head returns an empty array when there is no head-to-head history`() {
+        every { matchQueryService.findHeadToHead(100L) } returns emptyList()
+
+        mockMvc.get("/matches/100/head-to-head")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.length()") { value(0) }
+            }
     }
 }
