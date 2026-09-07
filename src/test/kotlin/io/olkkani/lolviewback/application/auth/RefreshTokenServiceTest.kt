@@ -42,6 +42,22 @@ class RefreshTokenServiceTest {
     }
 
     @Test
+    fun `rotate on an expired non-revoked token returns NotFound instead of reissuing`() {
+        val existing = RefreshToken(
+            userId = 42L,
+            tokenHash = service.hash("expired-raw-token"),
+            expiresAt = LocalDateTime.now().minusDays(1),
+            createdAt = LocalDateTime.now().minusDays(15),
+            revokedAt = null,
+        )
+        every { repository.findByTokenHashForUpdate(any()) } returns existing
+
+        val result = service.rotate("expired-raw-token")
+
+        assertEquals(RotateResult.NotFound, result)
+    }
+
+    @Test
     fun `rotate on a fresh non-revoked token revokes it and issues a new pair`() {
         val existing = RefreshToken(
             userId = 42L,
