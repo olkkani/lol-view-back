@@ -36,6 +36,8 @@ class RefreshTokenService(
     fun rotate(rawToken: String): RotateResult {
         val existing = repository.findByTokenHashForUpdate(hash(rawToken)) ?: return RotateResult.NotFound
 
+        if (existing.expiresAt.isBefore(LocalDateTime.now())) return RotateResult.NotFound
+
         if (existing.revokedAt == null) {
             existing.revokedAt = LocalDateTime.now()
             repository.save(existing)

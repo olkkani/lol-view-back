@@ -9,12 +9,20 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiRespon
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponseWrapper
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
+import kotlinx.coroutines.reactor.awaitSingle
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.awaitBody
+import org.springframework.web.reactive.function.client.WebClientRequestException
 import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
+import reactor.util.retry.Retry
 import java.time.Duration
+
+private val RETRY_SPEC: Retry =
+    Retry
+        .backoff(2, Duration.ofMillis(200))
+        .filter { it is WebClientRequestException }
 
 /**
  * WebClient-based client for esports-api.lolesports.com's tournament/schedule endpoints.
@@ -30,8 +38,15 @@ import java.time.Duration
 class LolEsportsApiClient(
     private val properties: LolApiProperties,
     webClientBuilder: WebClient.Builder,
-): LolApiClientPort {
-    private val httpClient = HttpClient.create().responseTimeout(Duration.ofSeconds(10))
+) : LolApiClientPort {
+    private val connectionProvider =
+        ConnectionProvider
+            .builder("lol-esports-api")
+            .maxIdleTime(Duration.ofSeconds(20))
+            .maxLifeTime(Duration.ofMinutes(5))
+            .evictInBackground(Duration.ofSeconds(30))
+            .build()
+    private val httpClient = HttpClient.create(connectionProvider).responseTimeout(Duration.ofSeconds(10))
     private val webClient = webClientBuilder.clientConnector(ReactorClientHttpConnector(httpClient)).build()
 
     override suspend fun fetchTournaments(leagueApiId: String): List<TournamentApiResponse> {
@@ -41,7 +56,9 @@ class LolEsportsApiClient(
                 .uri("${properties.url.tournament}$leagueApiId")
                 .header("x-api-key", properties.key)
                 .retrieve()
-                .awaitBody<TournamentApiResponseWrapper>()
+                .bodyToMono(TournamentApiResponseWrapper::class.java)
+                .retryWhen(RETRY_SPEC)
+                .awaitSingle()
         return wrapper.data.leagues.flatMap { it.tournaments }
     }
 
@@ -52,7 +69,9 @@ class LolEsportsApiClient(
                 .uri("${properties.url.match}$leagueApiId")
                 .header("x-api-key", properties.key)
                 .retrieve()
-                .awaitBody<MatchApiResponseWrapper>()
+                .bodyToMono(MatchApiResponseWrapper::class.java)
+                .retryWhen(RETRY_SPEC)
+                .awaitSingle()
         return wrapper.data.schedule.events
             .map { MatchApiResponse.from(it) }
     }
@@ -79,21 +98,22 @@ class LolEsportsApiClient(
                 .uri("${properties.url.match}$leagueApiId")
                 .header("x-api-key", properties.key)
                 .retrieve()
-                .awaitBody<MatchApiResponseWrapper>()
+                .bodyToMono(MatchApiResponseWrapper::class.java)
+                .retryWhen(RETRY_SPEC)
+                .awaitSingle()
         return wrapper.data.schedule.events
     }
 
-
     override suspend fun fetchMatchSet(matchApiId: String): MatchSetApiResponse? {
-            val wrapper =
-                webClient
-                    .get()
-                    .uri("${properties.url.sets}$matchApiId")
-                    .header("x-api-key", properties.key)
-                    .retrieve()
-                    .awaitBody<MatchSetApiResponseWrapper>()
-            return wrapper.data.event
+        val wrapper =
+            webClient
+                .get()
+                .uri("${properties.url.sets}$matchApiId")
+                .header("x-api-key", properties.key)
+                .retrieve()
+                .bodyToMono(MatchSetApiResponseWrapper::class.java)
+                .retryWhen(RETRY_SPEC)
+                .awaitSingle()
+        return wrapper.data.event
     }
 }
-
-

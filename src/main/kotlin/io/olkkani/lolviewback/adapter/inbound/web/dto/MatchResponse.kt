@@ -41,6 +41,6 @@ private fun MatchParticipant.toClubResponse(scoresByClubId: Map<Long, Int>): Mat
         name = this.clubProfile.abbreviation,
         logoUrl = this.clubProfile.logoUrl,
         logoBackdrop = this.clubProfile.logoBackdrop,
-        score = scoresByClubId[this.club.id] ?: 0,
+        score = this.club?.id?.let { scoresByClubId[it] } ?: 0,
     )
 }

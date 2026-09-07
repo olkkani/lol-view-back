@@ -2,6 +2,8 @@ package io.olkkani.lolviewback.adapter.outbound.persistence.entity
 
 import io.hypersistence.tsid.TSID
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 
@@ -10,4 +12,6 @@ import jakarta.persistence.Table
 class User(
     @Id
     var id: Long = TSID.Factory.getTsid().toLong(),
+    @Enumerated(EnumType.STRING)
+    var role: Role = Role.USER,
 )

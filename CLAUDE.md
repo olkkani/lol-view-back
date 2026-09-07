@@ -2,6 +2,11 @@
 - Be brief and concise in all responses
 - Avoid unnecessary explanations
 
+## Git Workflow
+- This repo uses a bare repo + git worktree layout (`.bare`, with `main`/`develop`/feature worktrees as siblings).
+- `feature/*` branches are always branched from `develop`, not `main`.
+- When a skill (e.g. `finishing-a-development-branch`) asks whether to merge into `main`, merge into `develop` instead unless the user explicitly says `main`.
+
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.

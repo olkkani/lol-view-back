@@ -11,16 +11,16 @@ import org.springframework.security.oauth2.core.OAuth2Error
 
 class OAuth2FailureHandlerTest {
 
-    private val handler = OAuth2FailureHandler()
+    private val handler = OAuth2FailureHandler(frontendUrl = "https://frontend.example")
 
     @Test
-    fun `consent denial returns 400`() {
+    fun `consent denial redirects to the frontend with an error flag`() {
         val request = mockk<HttpServletRequest>()
         val response = mockk<HttpServletResponse>(relaxed = true)
         val exception = OAuth2AuthenticationException(OAuth2Error("access_denied"))
 
         handler.onAuthenticationFailure(request, response, exception)
 
-        verify { response.status = HttpServletResponse.SC_BAD_REQUEST }
+        verify { response.sendRedirect("https://frontend.example/login?error=oauth_failed") }
     }
 }

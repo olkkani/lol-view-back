@@ -5,5 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 
 interface ClubProfileRepository : JpaRepository<ClubProfile, Long>{
-    fun findByAbbreviation(abbreviation: String): ClubProfile
+    fun findByAbbreviation(abbreviation: String): ClubProfile?
+    fun findByAbbreviationIn(abbreviations: Collection<String>): List<ClubProfile>
 }

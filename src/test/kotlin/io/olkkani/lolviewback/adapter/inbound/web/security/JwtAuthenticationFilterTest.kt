@@ -4,6 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.olkkani.lolviewback.adapter.inbound.security.JwtAuthenticationFilter
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Role
 import io.olkkani.lolviewback.application.auth.JwtParseResult
 import io.olkkani.lolviewback.application.auth.JwtService
 import jakarta.servlet.DispatcherType
@@ -13,7 +14,9 @@ import jakarta.servlet.http.HttpServletResponse
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 
 class JwtAuthenticationFilterTest {
@@ -28,7 +31,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `a valid bearer token sets the authenticated user id in the security context`() {
-        every { jwtService.parseResult("valid-token") } returns JwtParseResult.Valid(42L)
+        every { jwtService.parseResult("valid-token") } returns JwtParseResult.Valid(42L, Role.USER)
         val request = mockk<HttpServletRequest>(relaxed = true)
         every { request.getHeader("Authorization") } returns "Bearer valid-token"
         every { request.dispatcherType } returns DispatcherType.REQUEST
@@ -40,6 +43,39 @@ class JwtAuthenticationFilterTest {
 
         assertEquals("42", SecurityContextHolder.getContext().authentication?.principal)
         verify { chain.doFilter(request, response) }
+    }
+
+    @Test
+    fun `a valid token with ADMIN role grants ROLE_ADMIN authority`() {
+        every { jwtService.parseResult("admin-token") } returns JwtParseResult.Valid(1L, Role.ADMIN)
+        val request = mockk<HttpServletRequest>(relaxed = true)
+        every { request.getHeader("Authorization") } returns "Bearer admin-token"
+        every { request.dispatcherType } returns DispatcherType.REQUEST
+        every { request.getAttribute(any()) } returns null
+        val response = mockk<HttpServletResponse>()
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        filter.doFilter(request, response, chain)
+
+        val authorities = SecurityContextHolder.getContext().authentication?.authorities
+        assertTrue(authorities?.contains(SimpleGrantedAuthority("ROLE_ADMIN")) == true)
+    }
+
+    @Test
+    fun `a valid token with USER role does not grant ROLE_ADMIN authority`() {
+        every { jwtService.parseResult("user-token") } returns JwtParseResult.Valid(2L, Role.USER)
+        val request = mockk<HttpServletRequest>(relaxed = true)
+        every { request.getHeader("Authorization") } returns "Bearer user-token"
+        every { request.dispatcherType } returns DispatcherType.REQUEST
+        every { request.getAttribute(any()) } returns null
+        val response = mockk<HttpServletResponse>()
+        val chain = mockk<FilterChain>(relaxed = true)
+
+        filter.doFilter(request, response, chain)
+
+        val authorities = SecurityContextHolder.getContext().authentication?.authorities
+        assertTrue(authorities?.contains(SimpleGrantedAuthority("ROLE_USER")) == true)
+        assertTrue(authorities?.contains(SimpleGrantedAuthority("ROLE_ADMIN")) == false)
     }
 
     @Test
@@ -91,7 +127,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `a valid access_token cookie authenticates when no Authorization header is present`() {
-        every { jwtService.parseResult("cookie-token") } returns JwtParseResult.Valid(42L)
+        every { jwtService.parseResult("cookie-token") } returns JwtParseResult.Valid(42L, Role.USER)
         val request = mockk<HttpServletRequest>(relaxed = true)
         every { request.getHeader("Authorization") } returns null
         every { request.cookies } returns arrayOf(jakarta.servlet.http.Cookie("access_token", "cookie-token"))
@@ -108,7 +144,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `the Authorization header takes precedence over the access_token cookie when both are present`() {
-        every { jwtService.parseResult("header-token") } returns JwtParseResult.Valid(7L)
+        every { jwtService.parseResult("header-token") } returns JwtParseResult.Valid(7L, Role.USER)
         val request = mockk<HttpServletRequest>(relaxed = true)
         every { request.getHeader("Authorization") } returns "Bearer header-token"
         every { request.cookies } returns arrayOf(jakarta.servlet.http.Cookie("access_token", "should-not-be-used"))

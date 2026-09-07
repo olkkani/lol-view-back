@@ -4,13 +4,14 @@ import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Role
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.Base64
 import java.util.Date
 
 sealed class JwtParseResult {
-    data class Valid(val userId: Long) : JwtParseResult()
+    data class Valid(val userId: Long, val role: Role) : JwtParseResult()
     object Expired : JwtParseResult()
     object Invalid : JwtParseResult()
 }
@@ -22,11 +23,12 @@ class JwtService(
 ) {
     private val key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret))
 
-    fun issueToken(userId: Long): String {
+    fun issueToken(userId: Long, role: Role): String {
         val now = Date()
         val expiry = Date(now.time + accessExpirationMinutes * 60_000)
         return Jwts.builder()
             .subject(userId.toString())
+            .claim("role", role.name)
             .issuedAt(now)
             .expiration(expiry)
             .signWith(key)
@@ -45,7 +47,9 @@ class JwtService(
                 .build()
                 .parseSignedClaims(token)
                 .payload
-            JwtParseResult.Valid(claims.subject.toLong())
+            val role = runCatching { Role.valueOf(claims["role"] as? String ?: Role.USER.name) }
+                .getOrDefault(Role.USER)
+            JwtParseResult.Valid(claims.subject.toLong(), role)
         } catch (ex: ExpiredJwtException) {
             JwtParseResult.Expired
         } catch (ex: JwtException) {

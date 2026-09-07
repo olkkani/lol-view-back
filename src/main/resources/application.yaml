@@ -52,6 +52,10 @@ spring:
       enabled: true
 server:
   port: 9031
+app:
+  frontend-url: http://localhost:5173
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:80
 --- # server-prod
 spring:
   config:
@@ -64,6 +68,10 @@ server:
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+app:
+  frontend-url: https://gemspi.kro.kr
+  cors:
+    allowed-origins: https://gemspi.kro.kr,http://localhost:80,http://ngnix:80
 --- # persistence-local
 spring:
   config:

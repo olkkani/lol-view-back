@@ -72,8 +72,6 @@ CREATE TABLE "matches"
 CREATE TABLE "match_participants"
 (
     "id"              BIGINT PRIMARY KEY,
-    "is_win"          boolean,
-    "score"           integer,
     "match_id"        BIGINT,
     "club_id"         BIGINT,
     "club_profile_id" BIGINT

@@ -48,31 +48,6 @@ dependencies {
     testImplementation(libs.bundles.persistence.test.testcontainer)
     developmentOnly(libs.bundles.persistence.database.embedded)
     jooqCodegen(libs.postgresql)
-//    implementation("org.springframework.boot:spring-boot-starter-batch")
-//    implementation("org.springframework.boot:spring-boot-starter-data-rest")
-//    implementation("org.springframework.boot:spring-boot-starter-hateoas")
-//    implementation("org.springframework.boot:spring-boot-starter-webclient")
-//    implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
-//    developmentOnly("org.springframework.boot:spring-boot-docker-compose")
-
-
-//    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-//    testImplementation("org.springframework.boot:spring-boot-starter-batch-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-data-rest-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-hateoas-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-jooq-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-security-oauth2-client-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-webclient-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
-//    testImplementation("org.springframework.boot:spring-boot-starter-webservices-test")
-//    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-//    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-//    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
@@ -114,7 +89,7 @@ tasks {
         schemaToPackageMapping.put("public", "model")
 
         usingJavaConfig {
-            /* "this" here is the org.jooq.meta.jaxb.Generator configure it as you please */
+            // "this" here is the org.jooq.meta.jaxb.Generator configure it as you please
         }
     }
 }

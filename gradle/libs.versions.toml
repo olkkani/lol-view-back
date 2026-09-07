@@ -1,7 +1,7 @@
 # https://plugins.gradle.org/
 [versions]
 # Plguin verisons
-kotlin = "2.4.10"
+kotlin = "2.3.21"
 ksp = "2.3.10" # https://kotlinlang.org/docs/ksp-quickstart.html
 ktlint = "14.2.0"
 detekt = "1.23.8"
