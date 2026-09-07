@@ -14,27 +14,30 @@ import io.olkkani.lolviewback.application.auth.RefreshTokenService
 import io.olkkani.lolviewback.application.auth.RotateResult
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import java.util.Optional
 
 class AuthRestControllerTest {
-
     private val userIdentityRepository = mockk<UserIdentityRepository>()
     private val userRepository = mockk<UserRepository>()
     private val jwtService = mockk<JwtService>()
     private val refreshTokenService = mockk<RefreshTokenService>()
-    private val controller = AuthRestController(
-        userIdentityRepository,
-        userRepository,
-        jwtService,
-        refreshTokenService,
-        accessExpirationMinutes = 30L,
-        refreshExpirationDays = 14L,
-    )
+    private val controller =
+        AuthRestController(
+            userIdentityRepository,
+            userRepository,
+            jwtService,
+            refreshTokenService,
+            accessExpirationMinutes = 30L,
+            refreshExpirationDays = 14L,
+        )
 
     @Test
     fun `refresh re-reads the current role from the database, not from the old token`() {
@@ -44,10 +47,9 @@ class AuthRestControllerTest {
         every { jwtService.issueToken(7L, Role.ADMIN) } returns "new-access-jwt"
 
         val request = mockk<HttpServletRequest>()
-        every { request.cookies } returns arrayOf(jakarta.servlet.http.Cookie("refresh_token", "old-refresh-token"))
-        val response = mockk<HttpServletResponse>(relaxed = true)
+        every { request.cookies } returns arrayOf(Cookie("refresh_token", "old-refresh-token"))
 
-        controller.refresh(request, response)
+        controller.refresh(request)
 
         verify { jwtService.issueToken(7L, Role.ADMIN) }
     }
@@ -56,20 +58,20 @@ class AuthRestControllerTest {
     fun `refresh returns 401 when there is no refresh_token cookie`() {
         val request = mockk<HttpServletRequest>()
         every { request.cookies } returns null
-        val response = mockk<HttpServletResponse>(relaxed = true)
 
-        controller.refresh(request, response)
+        val response = controller.refresh(request)
 
-        verify { response.status = HttpServletResponse.SC_UNAUTHORIZED }
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
     }
 
     @Test
     fun `GET auth me returns the identity list for the authenticated user`() {
         SecurityContextHolder.getContext().authentication =
             UsernamePasswordAuthenticationToken("88", null, emptyList<SimpleGrantedAuthority>())
-        every { userIdentityRepository.findByUserId(88L) } returns listOf(
-            UserIdentity(id = 1L, userId = 88L, provider = "GOOGLE", providerUserId = "sub-88"),
-        )
+        every { userIdentityRepository.findByUserId(88L) } returns
+            listOf(
+                UserIdentity(id = 1L, userId = 88L, provider = "GOOGLE", providerUserId = "sub-88"),
+            )
 
         val result = controller.getMe()
 
@@ -86,13 +88,13 @@ class AuthRestControllerTest {
 
         val request = mockk<HttpServletRequest>()
         every { request.cookies } returns arrayOf(Cookie("refresh_token", "stolen-refresh-value"))
-        val response = mockk<HttpServletResponse>(relaxed = true)
 
-        controller.refresh(request, response)
+        val response = controller.refresh(request)
 
-        verify { response.status = HttpServletResponse.SC_UNAUTHORIZED }
-        verify { response.addHeader("Set-Cookie", CookieSupport.expiredAccessTokenCookie().toString()) }
-        verify { response.addHeader("Set-Cookie", CookieSupport.expiredRefreshTokenCookie().toString()) }
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+        val setCookies = response.headers[HttpHeaders.SET_COOKIE].orEmpty()
+        assertTrue(setCookies.contains(CookieSupport.expiredAccessTokenCookie().toString()))
+        assertTrue(setCookies.contains(CookieSupport.expiredRefreshTokenCookie().toString()))
     }
 
     @Test
@@ -101,12 +103,13 @@ class AuthRestControllerTest {
 
         val request = mockk<HttpServletRequest>()
         every { request.cookies } returns arrayOf(Cookie("refresh_token", "some-refresh-value"))
-        val response = mockk<HttpServletResponse>(relaxed = true)
 
-        controller.logout(request, response)
+        val response = controller.logout(request)
 
         verify { refreshTokenService.revoke("some-refresh-value") }
-        verify { response.addHeader("Set-Cookie", CookieSupport.expiredAccessTokenCookie().toString()) }
-        verify { response.addHeader("Set-Cookie", CookieSupport.expiredRefreshTokenCookie().toString()) }
+        assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
+        val setCookies = response.headers[HttpHeaders.SET_COOKIE].orEmpty()
+        assertTrue(setCookies.contains(CookieSupport.expiredAccessTokenCookie().toString()))
+        assertTrue(setCookies.contains(CookieSupport.expiredRefreshTokenCookie().toString()))
     }
 }
