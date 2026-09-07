@@ -1,23 +1,53 @@
 package io.olkkani.lolviewback.application.service
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
-import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiResponse
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEvent
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventMatch
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventStrategy
+import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventTeam
+import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.ClubProfileRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Club
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
 import java.time.ZonedDateTime
 
 class PollMatchDataServiceTest {
+
+    private val tournamentRepository = mockk<TournamentRepository>()
+    private val tournamentPollingDao = mockk<TournamentPollingDao>()
+    private val matchRepository = mockk<MatchRepository>()
+    private val clubProfileRepository = mockk<ClubProfileRepository>()
+    private val matchParticipantRepository = mockk<MatchParticipantRepository>()
+    private val apiClientPort = mockk<LolApiClientPort>()
+
+    private val service = PollMatchDataService(
+        tournamentRepository,
+        tournamentPollingDao,
+        matchRepository,
+        clubProfileRepository,
+        matchParticipantRepository,
+        apiClientPort,
+    )
 
     private fun league(apiId: String = "lck-api-id") = League(
         leagueName = "LCK",
@@ -27,6 +57,7 @@ class PollMatchDataServiceTest {
     )
 
     private fun tournament(league: League, apiId: String = "t-1") = Tournament(
+        id = 1L,
         tournamentName = "LCK 2026 Spring",
         startDate = LocalDate.now().minusDays(3),
         endDate = LocalDate.now().plusDays(30),
@@ -34,91 +65,178 @@ class PollMatchDataServiceTest {
         league = league,
     )
 
-    private fun matchApiResponse(apiId: String) = MatchApiResponse(
-        apiId = apiId,
-        startTime = ZonedDateTime.now(),
-        strategyType = "BO3",
-        state = "unstarted",
-        label = "Week 1",
+    private fun team(code: String, name: String = code) = MatchScheduleEventTeam(
+        name = name,
+        code = code,
+        image = "https://example.com/$code.png",
     )
 
-    @Test
-    fun `fetches and saves matches not already persisted for a due tournament`() = runBlocking {
-        val tournamentRepository = mockk<TournamentRepository>()
-        val tournamentPollingDao = mockk<TournamentPollingDao>()
-        val matchRepository = mockk<MatchRepository>()
-        val apiClientPort = mockk<LolApiClientPort>()
+    private fun scheduleEvent(
+        matchApiId: String,
+        state: String = "unstarted",
+        teams: List<MatchScheduleEventTeam> = listOf(team("T1"), team("GEN")),
+        boCount: Int = 3,
+    ) = MatchScheduleEvent(
+        startTime = ZonedDateTime.now(),
+        state = state,
+        blockName = "Week 1",
+        match = MatchScheduleEventMatch(
+            id = matchApiId,
+            teams = teams,
+            strategy = MatchScheduleEventStrategy(type = "bestOf", count = boCount),
+        ),
+    )
 
-        val league = league()
-        val dueTournament = tournament(league)
-        val newMatch = matchApiResponse("match-new")
-        val alreadySavedMatch = matchApiResponse("match-existing")
+    private fun clubProfile(abbreviation: String, club: Club? = Club(isActive = true)) = ClubProfile(
+        clubName = abbreviation,
+        abbreviation = abbreviation,
+        logoUrl = "https://example.com/$abbreviation.png",
+        effectiveFrom = LocalDate.now().minusYears(1),
+        club = club,
+    )
 
-        every { tournamentRepository.findAll() } returns listOf(dueTournament)
-        every { tournamentPollingDao.findInProgressTournaments() } returns emptyList()
-        coEvery { apiClientPort.fetchMatchesForLeague(league.leagueApiId) } returns listOf(newMatch, alreadySavedMatch)
-        every { matchRepository.findByMatchApiId("match-new") } returns null
-        every { matchRepository.findByMatchApiId("match-existing") } returns mockk<Match>()
-        every { matchRepository.save(any()) } answers { firstArg() }
-
-        val service = PollMatchDataService(tournamentRepository, tournamentPollingDao, matchRepository, apiClientPort)
-
-        service.syncUpcomingMatches()
-
-        verify(exactly = 1) { matchRepository.save(match { it.matchApiId == "match-new" }) }
-        verify(exactly = 0) { matchRepository.save(match { it.matchApiId == "match-existing" }) }
+    /** [MatchRepository.saveAll] returns each argument with a stand-in id assigned, mirroring JPA's save-on-insert behavior. */
+    private fun stubMatchSaveAll() {
+        every { matchRepository.saveAll(any<List<Match>>()) } answers {
+            firstArg<List<Match>>().mapIndexed { index, match -> match.also { it.id = index + 1L } }
+        }
     }
 
     @Test
-    fun `skips leagues with no due tournament without calling the api client`() = runBlocking {
-        val tournamentRepository = mockk<TournamentRepository>()
-        val tournamentPollingDao = mockk<TournamentPollingDao>()
-        val matchRepository = mockk<MatchRepository>()
-        val apiClientPort = mockk<LolApiClientPort>()
-
+    fun `saves an unstarted match for an in-progress tournament`() = runBlocking {
         val league = league()
-        val notDueTournament = Tournament(
-            tournamentName = "LCK 2025 Summer",
-            startDate = LocalDate.now().minusDays(60),
-            endDate = LocalDate.now().minusDays(30),
-            tournamentApiId = "t-old",
-            league = league,
-        )
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-new")
 
-        every { tournamentRepository.findAll() } returns listOf(notDueTournament)
-        every { tournamentPollingDao.findInProgressTournaments() } returns emptyList()
-
-        val service = PollMatchDataService(tournamentRepository, tournamentPollingDao, matchRepository, apiClientPort)
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubMatchSaveAll()
+        every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
 
         service.syncUpcomingMatches()
 
-        verify(exactly = 0) { matchRepository.save(any()) }
+        verify(exactly = 1) {
+            matchRepository.saveAll(
+                match<List<Match>> { matches ->
+                    matches.size == 1 &&
+                        matches[0].matchApiId == "match-new" &&
+                        matches[0].matchType == MatchType.BO3 &&
+                        matches[0].matchLabel == "Week 1"
+                },
+            )
+        }
     }
 
     @Test
-    fun `a failure fetching one league does not prevent syncing the next league`() = runBlocking {
-        val tournamentRepository = mockk<TournamentRepository>()
-        val tournamentPollingDao = mockk<TournamentPollingDao>()
-        val matchRepository = mockk<MatchRepository>()
-        val apiClientPort = mockk<LolApiClientPort>()
+    fun `does not save events that are not unstarted`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val completedEvent = scheduleEvent("match-completed", state = "completed")
+        val inProgressEvent = scheduleEvent("match-in-progress", state = "inProgress")
 
-        val failingLeague = league(apiId = "failing-league")
-        val okLeague = league(apiId = "ok-league")
-        val failingTournament = tournament(failingLeague, apiId = "t-fail")
-        val okTournament = tournament(okLeague, apiId = "t-ok")
-        val okMatch = matchApiResponse("match-ok")
-
-        every { tournamentRepository.findAll() } returns listOf(failingTournament, okTournament)
-        every { tournamentPollingDao.findInProgressTournaments() } returns emptyList()
-        coEvery { apiClientPort.fetchMatchesForLeague("failing-league") } throws RuntimeException("boom")
-        coEvery { apiClientPort.fetchMatchesForLeague("ok-league") } returns listOf(okMatch)
-        every { matchRepository.findByMatchApiId("match-ok") } returns null
-        every { matchRepository.save(any()) } answers { firstArg() }
-
-        val service = PollMatchDataService(tournamentRepository, tournamentPollingDao, matchRepository, apiClientPort)
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(completedEvent, inProgressEvent)
 
         service.syncUpcomingMatches()
 
-        verify(exactly = 1) { matchRepository.save(match { it.matchApiId == "match-ok" }) }
+        verify(exactly = 0) { matchRepository.saveAll(any<List<Match>>()) }
+        verify(exactly = 0) { tournamentRepository.getReferenceById(any()) }
+    }
+
+    @Test
+    fun `does not call the api client when no tournament is in progress`() = runBlocking {
+        every { tournamentPollingDao.findInProgressTournaments() } returns emptyList()
+
+        service.syncUpcomingMatches()
+
+        coVerify(exactly = 0) { apiClientPort.fetchMatches(any()) }
+        verify(exactly = 0) { matchRepository.saveAll(any<List<Match>>()) }
+    }
+
+    @Test
+    fun `reuses existing club profiles instead of creating new ones`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-new", teams = listOf(team("T1"), team("GEN")))
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubMatchSaveAll()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
+            listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 0) { clubProfileRepository.saveAll(any<List<ClubProfile>>()) }
+    }
+
+    @Test
+    fun `creates new club profiles only for unregistered teams, in a single batch`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-new", teams = listOf(team("T1"), team("NEW", name = "New Team")))
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubMatchSaveAll()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "NEW")) } returns listOf(clubProfile("T1"))
+        every { clubProfileRepository.saveAll(any<List<ClubProfile>>()) } answers { firstArg() }
+        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 1) {
+            clubProfileRepository.saveAll(
+                match<List<ClubProfile>> { profiles ->
+                    profiles.size == 1 && profiles[0].abbreviation == "NEW" && profiles[0].clubName == "New Team"
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `saves a match participant for every team on the match, in one batch`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-new", teams = listOf(team("T1"), team("GEN")))
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubMatchSaveAll()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
+            listOf(clubProfile("T1"), clubProfile("GEN"))
+        val savedParticipants = slot<List<MatchParticipant>>()
+        every { matchParticipantRepository.saveAll(capture(savedParticipants)) } answers { firstArg() }
+
+        service.syncUpcomingMatches()
+
+        assertEquals(2, savedParticipants.captured.size)
+        assertEquals(setOf("T1", "GEN"), savedParticipants.captured.map { it.clubProfile.abbreviation }.toSet())
+        assertTrue(savedParticipants.captured.all { it.match.matchApiId == "match-new" })
+    }
+
+    @Test
+    fun `does not throw when an existing club profile has no linked club`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-new", teams = listOf(team("T1")))
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubMatchSaveAll()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1", club = null))
+        val savedParticipants = slot<List<MatchParticipant>>()
+        every { matchParticipantRepository.saveAll(capture(savedParticipants)) } answers { firstArg() }
+
+        service.syncUpcomingMatches()
+
+        assertNull(savedParticipants.captured.single().club)
     }
 }

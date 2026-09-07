@@ -27,7 +27,6 @@ class OAuth2SuccessHandler(
     @Value("\${jwt.refresh-expiration-days}") private val refreshExpirationDays: Long,
     @Value("\${app.frontend-url}") private val frontendUrl: String,
 ) : AuthenticationSuccessHandler {
-
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -37,22 +36,33 @@ class OAuth2SuccessHandler(
         val oidcUser = oauthToken.principal as OidcUser
         val providerUserId = requireNotNull(oidcUser.subject)
 
-        val result = try {
-            resolveIdentityService.resolveIdentity(AuthProvider.GOOGLE, providerUserId, currentSessionUserId = null)
-        } catch (ex: IdentityAlreadyLinkedException) {
-            response.status = HttpServletResponse.SC_CONFLICT
-            return
-        }
-
-        val userId = when (result) {
-            is ResolveResult.NewUser -> result.userId
-            is ResolveResult.LoggedIn -> result.userId
-            is ResolveResult.Linked -> result.userId
-            ResolveResult.AlreadyLinkedElsewhere -> {
+        val result =
+            try {
+                resolveIdentityService.resolveIdentity(AuthProvider.GOOGLE, providerUserId, currentSessionUserId = null)
+            } catch (ex: IdentityAlreadyLinkedException) {
                 response.status = HttpServletResponse.SC_CONFLICT
                 return
             }
-        }
+
+        val userId =
+            when (result) {
+                is ResolveResult.NewUser -> {
+                    result.userId
+                }
+
+                is ResolveResult.LoggedIn -> {
+                    result.userId
+                }
+
+                is ResolveResult.Linked -> {
+                    result.userId
+                }
+
+                ResolveResult.AlreadyLinkedElsewhere -> {
+                    response.status = HttpServletResponse.SC_CONFLICT
+                    return
+                }
+            }
 
         // Role is always read from our own DB, never from oidcUser/oauthToken — an OAuth2
         // provider's claims must never be able to grant elevated access.
@@ -69,10 +79,11 @@ class OAuth2SuccessHandler(
             "Set-Cookie",
             CookieSupport.buildRefreshTokenCookie(refreshToken, refreshExpirationDays * 86_400).toString(),
         )
-        val redirectPath = PostLoginRedirectAuthorizationRequestResolver
-            .extractRedirectPath(request.getParameter("state"))
-            ?.takeIf(::isSafeRedirectPath)
-            ?: "/"
+        val redirectPath =
+            PostLoginRedirectAuthorizationRequestResolver
+                .extractRedirectPath(request.getParameter("state"))
+                ?.takeIf(::isSafeRedirectPath)
+                ?: "/"
 
         // This API is stateless (JWT cookies carry auth from here on). The only reason a
         // session exists at all is that Spring's OAuth2 login flow stores the authorization

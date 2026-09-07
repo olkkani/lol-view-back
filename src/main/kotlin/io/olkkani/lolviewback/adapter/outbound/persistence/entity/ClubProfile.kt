@@ -19,10 +19,9 @@ class ClubProfile(
     var abbreviation: String,
     var logoUrl: String,
     var effectiveFrom: LocalDate,
-    var effectiveTo: LocalDate,
+    var effectiveTo: LocalDate? = null,
     @ManyToOne @JoinColumn(name = "club_id")
     var club: Club? = null,
-
     @Enumerated(EnumType.STRING)
     var logoBackdrop: LogoBackdrop? = null,
 )

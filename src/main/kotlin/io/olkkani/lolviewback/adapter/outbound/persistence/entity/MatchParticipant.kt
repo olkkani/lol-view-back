@@ -14,11 +14,8 @@ class MatchParticipant(
     var id: Long = TSID.Factory.getTsid().toLong(),
     @ManyToOne @JoinColumn(name = "match_id")
     var match: Match,
-
     @ManyToOne @JoinColumn(name = "club_id")
-    var club: Club,
-
+    var club: Club? = null,
     @ManyToOne @JoinColumn(name = "club_profile_id")
     var clubProfile: ClubProfile,
-
 )

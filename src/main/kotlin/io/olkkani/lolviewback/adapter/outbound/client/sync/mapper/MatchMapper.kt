@@ -6,8 +6,8 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 
-fun MatchApiResponse.toEntity(tournament: Tournament): Match {
-    return Match(
+fun MatchApiResponse.toEntity(tournament: Tournament): Match =
+    Match(
         startTime = this.startTime,
         matchType = MatchType.valueOf(this.strategyType),
         matchState = mapState(this.state),
@@ -15,11 +15,11 @@ fun MatchApiResponse.toEntity(tournament: Tournament): Match {
         matchApiId = this.apiId,
         tournament = tournament,
     )
-}
 
-private fun mapState(apiState: String): MatchState = when (apiState.lowercase()) {
-    "unstarted" -> MatchState.UNSTARTED
-    "inProgress" -> MatchState.IN_PROGRESS
-    "completed" -> MatchState.COMPLETED
-    else -> throw IllegalArgumentException("Unknown match state from API: $apiState")
-}
+private fun mapState(apiState: String): MatchState =
+    when (apiState.lowercase()) {
+        "unstarted" -> MatchState.UNSTARTED
+        "inProgress" -> MatchState.IN_PROGRESS
+        "completed" -> MatchState.COMPLETED
+        else -> throw IllegalArgumentException("Unknown match state from API: $apiState")
+    }

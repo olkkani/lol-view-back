@@ -2,6 +2,12 @@ package io.olkkani.lolviewback.adapter.outbound.client.sync.dto
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
+import java.time.LocalDate
 import java.time.ZonedDateTime
 
 /**
@@ -66,7 +72,7 @@ data class MatchScheduleEvent(
     @JsonProperty("state")
     val state: String,
     @JsonProperty("blockName")
-    val blockName: String?,
+    val blockName: String,
     @JsonProperty("match")
     val match: MatchScheduleEventMatch,
 )
@@ -89,9 +95,7 @@ data class MatchScheduleEventTeam(
     val code: String,
     @JsonProperty
     val image: String,
-
-    )
-
+)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MatchScheduleEventStrategy(
@@ -153,13 +157,31 @@ data class MatchParticipantApiResponse(
     val id: String,
 )
 
-
-enum class MatchApiState(val value: String) {
+enum class MatchApiState(
+    val value: String,
+) {
     UNSTARTED("unstarted"),
     COMPLETED("completed"),
-    IN_PROGRESS("inProgress");
+    IN_PROGRESS("inProgress"),
+    ;
 
     override fun toString(): String = value
 }
 
-//fun MatchScheduleEventTeam.toMatchParticipantEntity() = MatchParticipantApiResponse()
+fun MatchScheduleEvent.toEntity(tournament: Tournament): Match =
+    Match(
+        startTime = startTime,
+        matchType = MatchType.fromBestOfCount(match.strategy.count),
+        matchState = MatchState.fromState(state),
+        matchLabel = blockName,
+        matchApiId = match.id,
+        tournament = tournament,
+    )
+
+fun MatchScheduleEventTeam.toProfileEntity(): ClubProfile =
+    ClubProfile(
+        clubName = name,
+        abbreviation = code,
+        logoUrl = image,
+        effectiveFrom = LocalDate.now(),
+    )

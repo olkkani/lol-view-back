@@ -38,7 +38,7 @@ private val RETRY_SPEC: Retry =
 class LolEsportsApiClient(
     private val properties: LolApiProperties,
     webClientBuilder: WebClient.Builder,
-): LolApiClientPort {
+) : LolApiClientPort {
     private val connectionProvider =
         ConnectionProvider
             .builder("lol-esports-api")
@@ -117,5 +117,3 @@ class LolEsportsApiClient(
         return wrapper.data.event
     }
 }
-
-
