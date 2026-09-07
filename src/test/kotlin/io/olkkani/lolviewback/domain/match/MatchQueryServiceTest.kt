@@ -3,6 +3,9 @@ package io.olkkani.lolviewback.domain.match
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.olkkani.lolviewback.adapter.inbound.web.dto.HeadToHeadResponse
+import io.olkkani.lolviewback.adapter.inbound.web.dto.InvalidHeadToHeadRequestException
+import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchNotFoundException
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchRange
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
@@ -18,10 +21,13 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.adapter.outbound.persistence.projection.MatchSetProjection
 import io.olkkani.lolviewback.application.service.MatchQueryService
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageRequest
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Optional
 
 class MatchQueryServiceTest {
 
@@ -144,5 +150,193 @@ class MatchQueryServiceTest {
 
         val scores = result.single().clubs.associate { it.name to it.score }
         assertEquals(mapOf("T1" to 2, "GEN" to 1), scores)
+    }
+
+    private fun completedMatch(id: Long, startTime: ZonedDateTime, tournament: Tournament) = Match(
+        id = id,
+        startTime = startTime,
+        matchType = MatchType.BO3,
+        matchState = MatchState.COMPLETED,
+        matchLabel = "W1",
+        matchApiId = "m$id",
+        tournament = tournament,
+    )
+
+    @Test
+    fun `findHeadToHead resolves the two club ids from the requested match and queries head-to-head`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 8, 12, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubB = Club(id = 20L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val clubProfileB = ClubProfile(clubName = "B", abbreviation = "B", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val currentParticipants = listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+            MatchParticipant(match = currentMatch, club = clubB, clubProfile = clubProfileB),
+        )
+
+        val pastMatch = completedMatch(1L, ZonedDateTime.of(2026, 7, 1, 14, 0, 0, 0, kst), tournament)
+
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns currentParticipants
+        every {
+            matchRepository.findHeadToHeadBefore(10L, 20L, currentMatch.startTime, PageRequest.of(0, 5))
+        } returns listOf(pastMatch)
+        every {
+            matchSetDao.findWinCountsByMatchIdIn(listOf(1L), mapOf(1L to LocalDate.of(2026, 7, 1)))
+        } returns listOf(MatchSetProjection(matchId = 1L, clubId = 10L, abbreviation = "A", wins = 2))
+
+        val result = service.findHeadToHead(100L)
+
+        assertEquals(listOf(HeadToHeadResponse(matchId = 1L, winnerClubId = 10L)), result)
+    }
+
+    @Test
+    fun `findHeadToHead returns results ordered oldest-first even though the query fetches newest-first`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 9, 1, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubB = Club(id = 20L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val clubProfileB = ClubProfile(clubName = "B", abbreviation = "B", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+            MatchParticipant(match = currentMatch, club = clubB, clubProfile = clubProfileB),
+        )
+
+        // Repository returns DESC (newest first): match 3, then 2, then 1.
+        val m3 = completedMatch(3L, ZonedDateTime.of(2026, 8, 3, 0, 0, 0, 0, kst), tournament)
+        val m2 = completedMatch(2L, ZonedDateTime.of(2026, 8, 2, 0, 0, 0, 0, kst), tournament)
+        val m1 = completedMatch(1L, ZonedDateTime.of(2026, 8, 1, 0, 0, 0, 0, kst), tournament)
+        every {
+            matchRepository.findHeadToHeadBefore(10L, 20L, currentMatch.startTime, PageRequest.of(0, 5))
+        } returns listOf(m3, m2, m1)
+        every {
+            matchSetDao.findWinCountsByMatchIdIn(listOf(3L, 2L, 1L), any())
+        } returns listOf(
+            MatchSetProjection(matchId = 3L, clubId = 10L, abbreviation = "A", wins = 2),
+            MatchSetProjection(matchId = 2L, clubId = 20L, abbreviation = "B", wins = 2),
+            MatchSetProjection(matchId = 1L, clubId = 10L, abbreviation = "A", wins = 2),
+        )
+
+        val result = service.findHeadToHead(100L)
+
+        // Oldest first: match 1, then 2, then 3.
+        assertEquals(listOf(1L, 2L, 3L), result.map { it.matchId })
+    }
+
+    @Test
+    fun `findHeadToHead excludes a COMPLETED match with no synced MatchSet rows instead of throwing`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 9, 1, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubB = Club(id = 20L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val clubProfileB = ClubProfile(clubName = "B", abbreviation = "B", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+            MatchParticipant(match = currentMatch, club = clubB, clubProfile = clubProfileB),
+        )
+
+        val syncedMatch = completedMatch(1L, ZonedDateTime.of(2026, 8, 2, 0, 0, 0, 0, kst), tournament)
+        val laggingMatch = completedMatch(2L, ZonedDateTime.of(2026, 8, 3, 0, 0, 0, 0, kst), tournament)
+        every {
+            matchRepository.findHeadToHeadBefore(10L, 20L, currentMatch.startTime, PageRequest.of(0, 5))
+        } returns listOf(laggingMatch, syncedMatch)
+        every {
+            matchSetDao.findWinCountsByMatchIdIn(listOf(2L, 1L), any())
+        } returns listOf(
+            // No projection for matchId=2L: sync hasn't produced MatchSet rows yet.
+            MatchSetProjection(matchId = 1L, clubId = 10L, abbreviation = "A", wins = 2),
+        )
+
+        val result = service.findHeadToHead(100L)
+
+        assertEquals(listOf(1L), result.map { it.matchId })
+    }
+
+    @Test
+    fun `findHeadToHead throws MatchNotFoundException when matchId does not exist`() {
+        every { matchRepository.findById(999L) } returns Optional.empty()
+
+        assertThrows(MatchNotFoundException::class.java) { service.findHeadToHead(999L) }
+    }
+
+    @Test
+    fun `findHeadToHead throws InvalidHeadToHeadRequestException when fewer than 2 club participants exist`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 8, 12, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+        )
+
+        assertThrows(InvalidHeadToHeadRequestException::class.java) { service.findHeadToHead(100L) }
+    }
+
+    @Test
+    fun `findHeadToHead throws InvalidHeadToHeadRequestException when both participants share the same club id`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 8, 12, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val clubProfileA2 = ClubProfile(clubName = "A2", abbreviation = "A2", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA2),
+        )
+
+        assertThrows(InvalidHeadToHeadRequestException::class.java) { service.findHeadToHead(100L) }
+    }
+
+    @Test
+    fun `findHeadToHead returns an empty list when no head-to-head matches exist`() {
+        val league = mockk<League>()
+        every { league.leagueName } returns "LCK"
+        val tournament = mockk<Tournament>()
+        every { tournament.league } returns league
+        val currentMatch = completedMatch(100L, ZonedDateTime.of(2026, 8, 12, 14, 0, 0, 0, kst), tournament)
+        val clubA = Club(id = 10L, isActive = true)
+        val clubB = Club(id = 20L, isActive = true)
+        val clubProfileA = ClubProfile(clubName = "A", abbreviation = "A", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+        val clubProfileB = ClubProfile(clubName = "B", abbreviation = "B", logoUrl = "u", effectiveFrom = LocalDate.of(2020, 1, 1))
+
+        every { matchRepository.findById(100L) } returns Optional.of(currentMatch)
+        every { matchParticipantRepository.findByMatchIdIn(listOf(100L)) } returns listOf(
+            MatchParticipant(match = currentMatch, club = clubA, clubProfile = clubProfileA),
+            MatchParticipant(match = currentMatch, club = clubB, clubProfile = clubProfileB),
+        )
+        every {
+            matchRepository.findHeadToHeadBefore(10L, 20L, currentMatch.startTime, PageRequest.of(0, 5))
+        } returns emptyList()
+
+        val result = service.findHeadToHead(100L)
+
+        assertEquals(emptyList<HeadToHeadResponse>(), result)
     }
 }
