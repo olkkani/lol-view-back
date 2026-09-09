@@ -23,6 +23,7 @@ class TournamentSyncScheduler(
 
     @Scheduled(cron = "0 0 0 * * *")
     fun syncDueTournaments() {
+        log.info("Starting tournament sync")
         val today = LocalDate.now()
         val activeLeagues = leagueRepository.findByIsActiveTrue()
 
@@ -67,5 +68,6 @@ class TournamentSyncScheduler(
                 log.error("Failed to fetch tournaments for league {}", league.leagueApiId, e)
             }
         }
+        log.info("Finished tournament sync")
     }
 }

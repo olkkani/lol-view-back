@@ -16,6 +16,17 @@ spring:
   config:
     activate:
       on-profile: common
+  # Scheduler thread pool: default Spring Boot pool size is 1, so every
+  # @Scheduled method (TournamentSyncScheduler@00:00, MatchDailySyncScheduler@00:05,
+  # MatchSetSyncScheduler@5min, RefreshTokenCleanupScheduler@03:00) shared a single
+  # thread. Because each runs synchronously (runBlocking / blocking JPA calls), a
+  # slow run could starve the next scheduler's trigger entirely — most visibly
+  # TournamentSyncScheduler at 00:00 delaying MatchDailySyncScheduler at 00:05.
+  # Sized to the number of distinct schedulers so none can block another.
+  task:
+    scheduling:
+      pool:
+        size: 4
   # persistence
   jpa:
     hibernate:

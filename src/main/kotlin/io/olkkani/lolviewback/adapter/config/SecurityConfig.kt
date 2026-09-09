@@ -42,17 +42,14 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource()) }
             .authorizeHttpRequests { authorize ->
                 authorize
-                    .requestMatchers("/oauth2/**", "/login/oauth2/**")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.POST, "/auth/refresh", "/auth/logout")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/matches")
-                    .permitAll()
-                    .requestMatchers("/actuator/health/**")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated()
-            }.exceptionHandling { exceptionHandling ->
+
+                    .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/refresh", "/auth/logout").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/matches", "/matches/**").permitAll()
+                    .requestMatchers("/actuator/health/**").permitAll()
+                    .anyRequest().authenticated()
+            }
+            .exceptionHandling { exceptionHandling ->
                 // Without this, Spring Security's default entry point for an
                 // unauthenticated request redirects (302) to the OAuth2 login page
                 // whenever oauth2Login() is configured. This API is token-based
