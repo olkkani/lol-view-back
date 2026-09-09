@@ -10,10 +10,9 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEven
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventMatch
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventStrategy
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventTeam
-import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
-import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.ClubProfileRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Club
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
@@ -35,17 +34,15 @@ class PollMatchDataServiceTest {
 
     private val tournamentRepository = mockk<TournamentRepository>()
     private val tournamentPollingDao = mockk<TournamentPollingDao>()
-    private val matchRepository = mockk<MatchRepository>()
+    private val matchPollingDao = mockk<MatchPollingDao>()
     private val clubProfileRepository = mockk<ClubProfileRepository>()
-    private val matchParticipantRepository = mockk<MatchParticipantRepository>()
     private val apiClientPort = mockk<LolApiClientPort>()
 
     private val service = PollMatchDataService(
         tournamentRepository,
         tournamentPollingDao,
-        matchRepository,
+        matchPollingDao,
         clubProfileRepository,
-        matchParticipantRepository,
         apiClientPort,
     )
 
@@ -95,9 +92,9 @@ class PollMatchDataServiceTest {
         club = club,
     )
 
-    /** [MatchRepository.saveAll] returns each argument with a stand-in id assigned, mirroring JPA's save-on-insert behavior. */
-    private fun stubMatchSaveAll() {
-        every { matchRepository.saveAll(any<List<Match>>()) } answers {
+    /** [MatchPollingDao.upsertMatches] returns each argument with a stand-in id assigned and matchApiId preserved, mirroring the DB round-trip. */
+    private fun stubUpsertMatches() {
+        every { matchPollingDao.upsertMatches(any<List<Match>>()) } answers {
             firstArg<List<Match>>().mapIndexed { index, match -> match.also { it.id = index + 1L } }
         }
     }
@@ -111,14 +108,14 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
-        stubMatchSaveAll()
+        stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
-        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
 
         verify(exactly = 1) {
-            matchRepository.saveAll(
+            matchPollingDao.upsertMatches(
                 match<List<Match>> { matches ->
                     matches.size == 1 &&
                         matches[0].matchApiId == "match-new" &&
@@ -141,7 +138,7 @@ class PollMatchDataServiceTest {
 
         service.syncUpcomingMatches()
 
-        verify(exactly = 0) { matchRepository.saveAll(any<List<Match>>()) }
+        verify(exactly = 0) { matchPollingDao.upsertMatches(any<List<Match>>()) }
         verify(exactly = 0) { tournamentRepository.getReferenceById(any()) }
     }
 
@@ -152,7 +149,7 @@ class PollMatchDataServiceTest {
         service.syncUpcomingMatches()
 
         coVerify(exactly = 0) { apiClientPort.fetchMatches(any()) }
-        verify(exactly = 0) { matchRepository.saveAll(any<List<Match>>()) }
+        verify(exactly = 0) { matchPollingDao.upsertMatches(any<List<Match>>()) }
     }
 
     @Test
@@ -164,10 +161,10 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
-        stubMatchSaveAll()
+        stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
-        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
 
@@ -183,10 +180,10 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
-        stubMatchSaveAll()
+        stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "NEW")) } returns listOf(clubProfile("T1"))
         every { clubProfileRepository.saveAll(any<List<ClubProfile>>()) } answers { firstArg() }
-        every { matchParticipantRepository.saveAll(any<List<MatchParticipant>>()) } answers { firstArg() }
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
 
@@ -208,11 +205,11 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
-        stubMatchSaveAll()
+        stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
         val savedParticipants = slot<List<MatchParticipant>>()
-        every { matchParticipantRepository.saveAll(capture(savedParticipants)) } answers { firstArg() }
+        every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
 
         service.syncUpcomingMatches()
 
@@ -230,13 +227,32 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
-        stubMatchSaveAll()
+        stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1", club = null))
         val savedParticipants = slot<List<MatchParticipant>>()
-        every { matchParticipantRepository.saveAll(capture(savedParticipants)) } answers { firstArg() }
+        every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
 
         service.syncUpcomingMatches()
 
         assertNull(savedParticipants.captured.single().club)
+    }
+
+    @Test
+    fun `re-polling the same match does not duplicate the upsertMatches input across two runs`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-repeat")
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
+
+        service.syncUpcomingMatches()
+        service.syncUpcomingMatches()
+
+        verify(exactly = 2) { matchPollingDao.upsertMatches(any<List<Match>>()) }
     }
 }

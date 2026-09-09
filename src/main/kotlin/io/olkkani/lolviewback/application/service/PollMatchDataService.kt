@@ -4,13 +4,11 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchApiState
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEvent
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.toEntity
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.toProfileEntity
-import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
-import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.ClubProfileRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
-import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
@@ -23,9 +21,8 @@ import org.springframework.stereotype.Service
 class PollMatchDataService(
     private val tournamentRepository: TournamentRepository,
     private val tournamentPollingDao: TournamentPollingDao,
-    private val matchRepository: MatchRepository,
+    private val matchPollingDao: MatchPollingDao,
     private val clubProfileRepository: ClubProfileRepository,
-    private val matchParticipantRepository: MatchParticipantRepository,
     private val apiClientPort: LolApiClientPort,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -50,13 +47,15 @@ class PollMatchDataService(
 
         val savedMatches =
             withContext(Dispatchers.IO) {
-                matchRepository.saveAll(unstartedMatches.map { it.toEntity(tournamentRef) })
+                matchPollingDao.upsertMatches(unstartedMatches.map { it.toEntity(tournamentRef) })
             }
+        val savedMatchByApiId = savedMatches.associateBy { it.matchApiId }
 
         val profilesByAbbreviation = resolveClubProfiles(unstartedMatches)
 
         val participants =
-            unstartedMatches.zip(savedMatches).flatMap { (apiMatch, savedMatch) ->
+            unstartedMatches.flatMap { apiMatch ->
+                val savedMatch = savedMatchByApiId.getValue(apiMatch.match.id)
                 apiMatch.match.teams.map { team ->
                     val profile = profilesByAbbreviation.getValue(team.code)
                     MatchParticipant(match = savedMatch, club = profile.club, clubProfile = profile)
@@ -64,7 +63,7 @@ class PollMatchDataService(
             }
 
         withContext(Dispatchers.IO) {
-            matchParticipantRepository.saveAll(participants)
+            matchPollingDao.upsertParticipants(participants)
         }
     }
 
