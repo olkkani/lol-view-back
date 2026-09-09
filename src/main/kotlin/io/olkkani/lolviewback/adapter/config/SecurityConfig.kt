@@ -46,7 +46,7 @@ class SecurityConfig(
                 authorize
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/auth/refresh", "/auth/logout").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/matches").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/matches", "/matches/**").permitAll()
                     .requestMatchers("/actuator/health/**").permitAll()
                     .anyRequest().authenticated()
             }

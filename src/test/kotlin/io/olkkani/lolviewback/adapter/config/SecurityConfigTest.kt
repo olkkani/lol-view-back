@@ -41,6 +41,14 @@ class SecurityConfigTest {
     }
 
     @Test
+    fun `GET matches head-to-head sub-path is reachable without authentication`() {
+        // No such match exists, so this returns 404 (not found), not 200 -
+        // the point here is only proving it's not blocked with a 401.
+        mockMvc.get("/matches/1/head-to-head")
+            .andExpect { status { isNotFound() } }
+    }
+
+    @Test
     fun `a request with a valid bearer token is authenticated`() {
         val token = jwtService.issueToken(userId = 1L, role = Role.USER)
 

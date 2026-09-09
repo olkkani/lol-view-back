@@ -14,10 +14,12 @@ class MatchDailySyncScheduler(
 
     @Scheduled(cron = "0 5 0 * * *")
     fun syncUpcomingMatches() {
+        log.info("Starting daily match sync")
         try {
             runBlocking {
                 pollMatchDataService.syncUpcomingMatches()
             }
+            log.info("Finished daily match sync")
         } catch (e: Exception) {
             log.error("Failed to sync upcoming matches", e)
         }

@@ -57,7 +57,7 @@ class MatchRestControllerTest {
                 matchState = MatchState.IN_PROGRESS,
                 matchLabel = "W1",
                 leagueName = "LCK",
-                clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = LogoBackdrop.DARK, score = 1)),
+                clubs = listOf(MatchClubResponse(clubId = 1L, name = "T1", logoUrl = "url", logoBackdrop = LogoBackdrop.DARK, score = 1)),
             )
         every { matchQueryService.findMatches(MatchRange.TODAY) } returns listOf(response)
 
@@ -80,7 +80,7 @@ class MatchRestControllerTest {
                 matchState = MatchState.IN_PROGRESS,
                 matchLabel = "W1",
                 leagueName = "LCK",
-                clubs = listOf(MatchClubResponse(name = "T1", logoUrl = "url", logoBackdrop = null, score = 1)),
+                clubs = listOf(MatchClubResponse(clubId = 1L, name = "T1", logoUrl = "url", logoBackdrop = null, score = 1)),
             )
         every { matchQueryService.findMatches(MatchRange.TODAY) } returns listOf(response)
 
