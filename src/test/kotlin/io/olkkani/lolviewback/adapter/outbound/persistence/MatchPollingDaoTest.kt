@@ -11,11 +11,13 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
@@ -164,6 +166,50 @@ class MatchPollingDaoTest {
             .singleResult
 
         assertEquals(1L, count)
+    }
+
+    /**
+     * Flush-risk documentation (Task 3): this test method itself is one shared persistence
+     * context/EntityManager (this class is @Transactional at the class level), so it
+     * reproduces the exact scenario Task 2 found — a client-assigned-TSID JPA entity
+     * (ClubProfile) saved via clubProfileRepository.saveAll(...) with its INSERT deferred to
+     * flush time, immediately followed by matchPollingDao.upsertParticipants(...) (raw jOOQ
+     * JDBC, bypasses the Hibernate session) referencing that profile's FK, with NO explicit
+     * entityManager.flush() in between. It genuinely throws a real Postgres FK violation, as
+     * asserted below — this documents that the risk is real WHEN the two calls share one
+     * persistence context.
+     *
+     * This is deliberately NOT the same situation as PollMatchDataService in production:
+     * PollMatchDataServiceFlushRiskIntegrationTest (in the application.service test package)
+     * proves that production's actual call shape — no @Transactional anywhere, each DB call
+     * wrapped in withContext(Dispatchers.IO), which dispatches onto a different physical
+     * thread with no shared EntityManager/transaction binding visible there — does NOT hit
+     * this failure mode, even under a simulated open-in-view request thread. See that test's
+     * class-level doc comment for the full reasoning and empirical proof.
+     */
+    @Test
+    fun `upsertParticipants throws a FK violation for a club profile saved via saveAll with no explicit flush in the same persistence context`() {
+        val tournament = tournament()
+        val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-flush-risk"))).single()
+
+        val newProfiles = clubProfileRepositoryDao.saveAll(
+            listOf(
+                ClubProfile(
+                    clubName = "New Team",
+                    abbreviation = "NEWT",
+                    logoUrl = "https://example.com/NEWT.png",
+                    effectiveFrom = LocalDate.now().minusYears(1),
+                    club = null,
+                ),
+            ),
+        )
+        // Deliberately no entityManager.flush() here — this is the exact gap being tested.
+
+        assertThrows(DataIntegrityViolationException::class.java) {
+            matchPollingDao.upsertParticipants(
+                listOf(MatchParticipant(match = savedMatch, club = null, clubProfile = newProfiles.single())),
+            )
+        }
     }
 
     @Test
