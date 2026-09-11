@@ -146,7 +146,7 @@ class MatchPollingDaoTest {
         val tournament = tournament()
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-p"))).single()
         val club = clubRepository.save(Club(isActive = true))
-        val profile = clubProfile("ZT1", club)
+        val profile = clubProfile("T1", club)
 
         matchPollingDao.upsertParticipants(listOf(MatchParticipant(match = savedMatch, club = club, clubProfile = profile)))
         entityManager.flush()
@@ -218,8 +218,8 @@ class MatchPollingDaoTest {
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-two-teams"))).single()
         val clubA = clubRepository.save(Club(isActive = true))
         val clubB = clubRepository.save(Club(isActive = true))
-        val profileA = clubProfile("ZT1", clubA)
-        val profileB = clubProfile("ZGN", clubB)
+        val profileA = clubProfile("T1", clubA)
+        val profileB = clubProfile("GEN", clubB)
 
         matchPollingDao.upsertParticipants(
             listOf(
@@ -244,8 +244,8 @@ class MatchPollingDaoTest {
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-tbd-resolve"))).single()
         val clubA = clubRepository.save(Club(isActive = true))
         val clubB = clubRepository.save(Club(isActive = true))
-        val profileA = clubProfile("ZT1", clubA)
-        val profileB = clubProfile("ZGN", clubB)
+        val profileA = clubProfile("T1", clubA)
+        val profileB = clubProfile("GEN", clubB)
         val tbdProfile = clubProfile("ZTBD", null)
 
         // Poll 1: one real team + TBD.
@@ -282,7 +282,7 @@ class MatchPollingDaoTest {
             .setParameter("matchId", savedMatch.id)
             .resultList
             .toSet()
-        assertEquals(setOf("ZT1", "ZGN"), remainingAbbreviations)
+        assertEquals(setOf("T1", "GEN"), remainingAbbreviations)
     }
 
     @Test
@@ -290,7 +290,7 @@ class MatchPollingDaoTest {
         val tournament = tournament()
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-one-confirmed"))).single()
         val clubA = clubRepository.save(Club(isActive = true))
-        val profileA = clubProfile("ZT1", clubA)
+        val profileA = clubProfile("T1", clubA)
         val tbdProfile = clubProfile("ZTBD", null)
 
         matchPollingDao.upsertParticipants(
@@ -315,8 +315,8 @@ class MatchPollingDaoTest {
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-no-tbd"))).single()
         val clubA = clubRepository.save(Club(isActive = true))
         val clubB = clubRepository.save(Club(isActive = true))
-        val profileA = clubProfile("ZT1", clubA)
-        val profileB = clubProfile("ZGN", clubB)
+        val profileA = clubProfile("T1", clubA)
+        val profileB = clubProfile("GEN", clubB)
         val tbdProfile = clubProfile("ZTBD", null)
 
         matchPollingDao.upsertParticipants(

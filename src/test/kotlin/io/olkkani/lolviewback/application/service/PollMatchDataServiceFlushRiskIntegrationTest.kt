@@ -254,4 +254,77 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
         assertEquals(1, participants.size)
         assertEquals("BNT", participants.single().clubProfile.abbreviation)
     }
+
+    /**
+     * End-to-end regression test for the whole feature this branch implements:
+     * resolveClubProfiles -> upsertParticipants -> deleteStaleTbdParticipants, chained
+     * together against a real Postgres schema (Testcontainers), not mocked at the DAO
+     * boundary the way PollMatchDataServiceTest is. First poll reports [T1, TBD] for a
+     * match; second poll reports [T1, GEN] (TBD's slot now resolved to a real team).
+     * After the second syncUpcomingMatches() call, exactly 2 real participant rows must
+     * remain persisted and the stale TBD row must be gone — this is the exact stale-row
+     * cleanup gap the whole-branch review's Fix 3 addresses (an unconditional
+     * deleteStaleTbdParticipants call), so this test also guards against a regression of
+     * that fix.
+     */
+    @Test
+    fun `second poll that resolves the last TBD slot leaves exactly the 2 real participants and removes the stale TBD row`() {
+        val league = leagueRepository.save(
+            League(
+                leagueName = "LCK",
+                logoUrl = "https://example.com/lck.png",
+                isActive = true,
+                leagueApiId = "e2e-tbd-league",
+            ),
+        )
+        tournamentRepository.save(
+            Tournament(
+                tournamentName = "LCK E2E TBD Cup",
+                startDate = LocalDate.now().minusDays(1),
+                endDate = LocalDate.now().plusDays(1),
+                tournamentApiId = "e2e-tbd-tournament",
+                league = league,
+            ),
+        )
+
+        val t1Team = MatchScheduleEventTeam(name = "T1", code = "T1", image = "https://example.com/t1.png")
+        val tbdTeam = MatchScheduleEventTeam(name = "TBD", code = "TBD", image = "https://example.com/tbd.png")
+        val genTeam = MatchScheduleEventTeam(name = "GEN", code = "GEN", image = "https://example.com/gen.png")
+
+        fun eventWith(teams: List<MatchScheduleEventTeam>) = MatchScheduleEvent(
+            startTime = ZonedDateTime.now(),
+            state = "unstarted",
+            blockName = "Week 1",
+            match = MatchScheduleEventMatch(
+                id = "e2e-tbd-match",
+                teams = teams,
+                strategy = MatchScheduleEventStrategy(type = "bestOf", count = 3),
+            ),
+        )
+
+        // Same seed-fixture isolation as the sibling test above: stub every league id with
+        // an empty result by default, then override this test's own league id per call.
+        coEvery { apiClientPort.fetchMatches(any()) } returns emptyList()
+
+        // Poll 1: [T1, TBD] — TBD resolves to the pre-seeded canonical profile.
+        coEvery { apiClientPort.fetchMatches("e2e-tbd-league") } returns listOf(eventWith(listOf(t1Team, tbdTeam)))
+        runBlocking { pollMatchDataService.syncUpcomingMatches() }
+
+        val savedMatch = matchRepository.findByMatchApiId("e2e-tbd-match")
+        assertNotNull(savedMatch)
+
+        val afterFirstPoll = matchParticipantRepository.findByMatchIdIn(listOf(savedMatch!!.id))
+        assertEquals(2, afterFirstPoll.size)
+        assertEquals(setOf("T1", "TBD"), afterFirstPoll.map { it.clubProfile.abbreviation }.toSet())
+
+        // Poll 2: [T1, GEN] — TBD's slot is now resolved to a real team. This batch itself
+        // has NO TBD-coded team, so cleanup for this match's now-stale TBD row must not
+        // depend on this poll's own batch containing TBD (Fix 3).
+        coEvery { apiClientPort.fetchMatches("e2e-tbd-league") } returns listOf(eventWith(listOf(t1Team, genTeam)))
+        runBlocking { pollMatchDataService.syncUpcomingMatches() }
+
+        val afterSecondPoll = matchParticipantRepository.findByMatchIdIn(listOf(savedMatch.id))
+        assertEquals(2, afterSecondPoll.size)
+        assertEquals(setOf("T1", "GEN"), afterSecondPoll.map { it.clubProfile.abbreviation }.toSet())
+    }
 }

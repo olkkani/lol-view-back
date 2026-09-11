@@ -111,6 +111,7 @@ class PollMatchDataServiceTest {
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
@@ -165,6 +166,7 @@ class PollMatchDataServiceTest {
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
@@ -184,6 +186,7 @@ class PollMatchDataServiceTest {
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "NEW")) } returns listOf(clubProfile("T1"))
         every { clubProfileRepository.saveAll(any<List<ClubProfile>>()) } answers { firstArg() }
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
@@ -209,6 +212,7 @@ class PollMatchDataServiceTest {
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         val savedParticipants = slot<List<MatchParticipant>>()
         every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
 
@@ -230,6 +234,7 @@ class PollMatchDataServiceTest {
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1", club = null))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         val savedParticipants = slot<List<MatchParticipant>>()
         every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
 
@@ -296,6 +301,7 @@ class PollMatchDataServiceTest {
         coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()
@@ -337,7 +343,37 @@ class PollMatchDataServiceTest {
     }
 
     @Test
-    fun `does not call deleteStaleTbdParticipants when no match in the batch has a TBD team`() = runBlocking {
+    fun `still calls deleteStaleTbdParticipants when no match in the batch has a TBD team`() = runBlocking {
+        // A match's LAST TBD slot can resolve in a poll whose batch has no TBD-coded team
+        // anywhere (e.g. this poll is [T1, GEN], both already real) — cleanup for that
+        // match's now-stale TBD row must not depend on the current batch containing TBD.
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-clean", teams = listOf(team("T1"), team("GEN")))
+        val tbdProfile = clubProfile("TBD", club = null)
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
+            listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
+        every { matchPollingDao.deleteStaleTbdParticipants(any(), any()) } returns Unit
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 1) {
+            matchPollingDao.deleteStaleTbdParticipants(
+                match<List<Long>> { it == listOf(1L) },
+                tbdProfile.id,
+            )
+        }
+    }
+
+    @Test
+    fun `skips deleteStaleTbdParticipants cleanup without throwing when the canonical TBD profile is missing`() = runBlocking {
         val league = league()
         val tournament = tournament(league)
         val event = scheduleEvent("match-clean", teams = listOf(team("T1"), team("GEN")))
@@ -348,6 +384,7 @@ class PollMatchDataServiceTest {
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns null
         every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
 
         service.syncUpcomingMatches()

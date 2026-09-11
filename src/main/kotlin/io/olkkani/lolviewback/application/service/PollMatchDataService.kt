@@ -66,8 +66,27 @@ class PollMatchDataService(
             matchPollingDao.upsertParticipants(participants)
         }
 
-        val tbdProfile = profilesByAbbreviation[TBD_ABBREVIATION]
-        if (tbdProfile != null) {
+        // Always attempt stale-TBD cleanup for this batch's matches, not just when the
+        // batch itself contains a TBD-coded team: a match can have its LAST TBD slot
+        // resolved in a poll whose batch has no TBD team anywhere (e.g. poll N-1 has
+        // [T1, TBD], poll N has [T1, GEN] — GEN's confirmation leaves a stale TBD row
+        // with no TBD-coded team in poll N's batch to trigger a delete). Look up the
+        // canonical TBD profile directly, every call, regardless of profilesByAbbreviation.
+        //
+        // Failure-mode choice: unlike resolveClubProfiles' error(...) (which only runs
+        // when a TBD team is ACTUALLY present in the batch, so failing loudly is safe —
+        // that lookup is already required for correctness), this lookup now runs on
+        // EVERY poll for EVERY tournament, including ones that never touch TBD at all.
+        // Throwing here would take down sync entirely for such tournaments over a
+        // best-effort cleanup step. Skipping cleanup on a missing/unreachable TBD row is
+        // the safer failure mode: it degrades to "a stale TBD row waits for the next
+        // poll where cleanup succeeds" instead of breaking sync outright.
+        val tbdProfile = withContext(Dispatchers.IO) {
+            clubProfileRepository.findByAbbreviation(TBD_ABBREVIATION)
+        }
+        if (tbdProfile == null) {
+            log.warn("Canonical TBD club_profiles row is missing — skipping stale TBD participant cleanup for this batch")
+        } else {
             withContext(Dispatchers.IO) {
                 matchPollingDao.deleteStaleTbdParticipants(savedMatches.map { it.id }, tbdProfile.id)
             }
