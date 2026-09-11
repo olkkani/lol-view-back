@@ -65,6 +65,13 @@ class PollMatchDataService(
         withContext(Dispatchers.IO) {
             matchPollingDao.upsertParticipants(participants)
         }
+
+        val tbdProfile = profilesByAbbreviation[TBD_ABBREVIATION]
+        if (tbdProfile != null) {
+            withContext(Dispatchers.IO) {
+                matchPollingDao.deleteStaleTbdParticipants(savedMatches.map { it.id }, tbdProfile.id)
+            }
+        }
     }
 
     /**

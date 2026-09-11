@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import io.mockk.verifyOrder
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEvent
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventMatch
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventStrategy
@@ -252,6 +253,7 @@ class PollMatchDataServiceTest {
         every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
         val savedParticipants = slot<List<MatchParticipant>>()
         every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
+        every { matchPollingDao.deleteStaleTbdParticipants(any(), any()) } returns Unit
 
         service.syncUpcomingMatches()
 
@@ -275,6 +277,7 @@ class PollMatchDataServiceTest {
         every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
         val savedParticipants = slot<List<MatchParticipant>>()
         every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
+        every { matchPollingDao.deleteStaleTbdParticipants(any(), any()) } returns Unit
 
         service.syncUpcomingMatches()
 
@@ -299,5 +302,56 @@ class PollMatchDataServiceTest {
         service.syncUpcomingMatches()
 
         verify(exactly = 2) { matchPollingDao.upsertMatches(any<List<Match>>()) }
+    }
+
+    @Test
+    fun `calls deleteStaleTbdParticipants after upsertParticipants with the batch's match ids and the TBD profile id`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val eventA = scheduleEvent("match-a", teams = listOf(team("T1"), team("GEN")))
+        val eventB = scheduleEvent("match-b", teams = listOf(team("T1"), team("TBD")))
+        val tbdProfile = clubProfile("TBD", club = null)
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(eventA, eventB)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
+            listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
+        every { matchPollingDao.deleteStaleTbdParticipants(any(), any()) } returns Unit
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 1) {
+            matchPollingDao.deleteStaleTbdParticipants(
+                match<List<Long>> { it.toSet() == setOf(1L, 2L) },
+                tbdProfile.id,
+            )
+        }
+        verifyOrder {
+            matchPollingDao.upsertParticipants(any<List<MatchParticipant>>())
+            matchPollingDao.deleteStaleTbdParticipants(any(), any())
+        }
+    }
+
+    @Test
+    fun `does not call deleteStaleTbdParticipants when no match in the batch has a TBD team`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-clean", teams = listOf(team("T1"), team("GEN")))
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
+            listOf(clubProfile("T1"), clubProfile("GEN"))
+        every { matchPollingDao.upsertParticipants(any<List<MatchParticipant>>()) } returns Unit
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 0) { matchPollingDao.deleteStaleTbdParticipants(any(), any()) }
     }
 }
