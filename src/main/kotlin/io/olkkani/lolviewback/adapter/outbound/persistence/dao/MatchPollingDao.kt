@@ -94,4 +94,28 @@ class MatchPollingDao(
             .doNothing()
             .execute()
     }
+
+    /**
+     * Deletes the TBD placeholder participant row for each given match, but only for a match
+     * whose participant count is currently greater than 2 — the state that can only arise once
+     * both real teams are confirmed alongside the leftover TBD row (every match format in this
+     * domain is 2-team; see design doc). Leaves the TBD row untouched when only one real team
+     * has been confirmed so far (count == 2), and is a no-op for a match with no TBD row at all
+     * or one already cleaned up on a prior poll — safe to call unconditionally on every poll.
+     */
+    fun deleteStaleTbdParticipants(matchIds: List<Long>, tbdClubProfileId: Long) {
+        if (matchIds.isEmpty()) return
+
+        val mp2 = matchParticipants.`as`("mp2")
+        dsl.deleteFrom(matchParticipants)
+            .where(matchParticipants.MATCH_ID.`in`(matchIds))
+            .and(matchParticipants.CLUB_PROFILE_ID.eq(tbdClubProfileId))
+            .and(
+                dsl.selectCount().from(mp2)
+                    .where(mp2.MATCH_ID.eq(matchParticipants.MATCH_ID))
+                    .asField<Int>()
+                    .gt(2),
+            )
+            .execute()
+    }
 }

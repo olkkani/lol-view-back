@@ -146,7 +146,7 @@ class MatchPollingDaoTest {
         val tournament = tournament()
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-p"))).single()
         val club = clubRepository.save(Club(isActive = true))
-        val profile = clubProfile("T1", club)
+        val profile = clubProfile("ZT1", club)
 
         matchPollingDao.upsertParticipants(listOf(MatchParticipant(match = savedMatch, club = club, clubProfile = profile)))
         entityManager.flush()
@@ -218,8 +218,8 @@ class MatchPollingDaoTest {
         val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-two-teams"))).single()
         val clubA = clubRepository.save(Club(isActive = true))
         val clubB = clubRepository.save(Club(isActive = true))
-        val profileA = clubProfile("T1", clubA)
-        val profileB = clubProfile("GEN", clubB)
+        val profileA = clubProfile("ZT1", clubA)
+        val profileB = clubProfile("ZGN", clubB)
 
         matchPollingDao.upsertParticipants(
             listOf(
@@ -237,4 +237,112 @@ class MatchPollingDaoTest {
 
         assertEquals(2L, count)
     }
+
+    @Test
+    fun `deleteStaleTbdParticipants removes the TBD row once a second real team is confirmed`() {
+        val tournament = tournament()
+        val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-tbd-resolve"))).single()
+        val clubA = clubRepository.save(Club(isActive = true))
+        val clubB = clubRepository.save(Club(isActive = true))
+        val profileA = clubProfile("ZT1", clubA)
+        val profileB = clubProfile("ZGN", clubB)
+        val tbdProfile = clubProfile("ZTBD", null)
+
+        // Poll 1: one real team + TBD.
+        matchPollingDao.upsertParticipants(
+            listOf(
+                MatchParticipant(match = savedMatch, club = clubA, clubProfile = profileA),
+                MatchParticipant(match = savedMatch, club = null, clubProfile = tbdProfile),
+            ),
+        )
+        entityManager.flush()
+        entityManager.clear()
+        matchPollingDao.deleteStaleTbdParticipants(listOf(savedMatch.id), tbdProfile.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertEquals(2L, participantCount(savedMatch.id))
+
+        // Poll 2: second team confirms; TBD row must now be removed.
+        matchPollingDao.upsertParticipants(
+            listOf(MatchParticipant(match = savedMatch, club = clubB, clubProfile = profileB)),
+        )
+        entityManager.flush()
+        entityManager.clear()
+        matchPollingDao.deleteStaleTbdParticipants(listOf(savedMatch.id), tbdProfile.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertEquals(2L, participantCount(savedMatch.id))
+        val remainingAbbreviations = entityManager
+            .createQuery(
+                "SELECT p.clubProfile.abbreviation FROM MatchParticipant p WHERE p.match.id = :matchId",
+                String::class.java,
+            )
+            .setParameter("matchId", savedMatch.id)
+            .resultList
+            .toSet()
+        assertEquals(setOf("ZT1", "ZGN"), remainingAbbreviations)
+    }
+
+    @Test
+    fun `deleteStaleTbdParticipants leaves the TBD row when only one team is confirmed`() {
+        val tournament = tournament()
+        val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-one-confirmed"))).single()
+        val clubA = clubRepository.save(Club(isActive = true))
+        val profileA = clubProfile("ZT1", clubA)
+        val tbdProfile = clubProfile("ZTBD", null)
+
+        matchPollingDao.upsertParticipants(
+            listOf(
+                MatchParticipant(match = savedMatch, club = clubA, clubProfile = profileA),
+                MatchParticipant(match = savedMatch, club = null, clubProfile = tbdProfile),
+            ),
+        )
+        entityManager.flush()
+        entityManager.clear()
+
+        matchPollingDao.deleteStaleTbdParticipants(listOf(savedMatch.id), tbdProfile.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertEquals(2L, participantCount(savedMatch.id))
+    }
+
+    @Test
+    fun `deleteStaleTbdParticipants is a no-op for a match with no TBD row`() {
+        val tournament = tournament()
+        val savedMatch = matchPollingDao.upsertMatches(listOf(match(tournament, "match-no-tbd"))).single()
+        val clubA = clubRepository.save(Club(isActive = true))
+        val clubB = clubRepository.save(Club(isActive = true))
+        val profileA = clubProfile("ZT1", clubA)
+        val profileB = clubProfile("ZGN", clubB)
+        val tbdProfile = clubProfile("ZTBD", null)
+
+        matchPollingDao.upsertParticipants(
+            listOf(
+                MatchParticipant(match = savedMatch, club = clubA, clubProfile = profileA),
+                MatchParticipant(match = savedMatch, club = clubB, clubProfile = profileB),
+            ),
+        )
+        entityManager.flush()
+        entityManager.clear()
+
+        matchPollingDao.deleteStaleTbdParticipants(listOf(savedMatch.id), tbdProfile.id)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertEquals(2L, participantCount(savedMatch.id))
+    }
+
+    @Test
+    fun `deleteStaleTbdParticipants with empty matchIds does nothing`() {
+        matchPollingDao.deleteStaleTbdParticipants(emptyList(), 1L)
+    }
+
+    private fun participantCount(matchId: Long): Long =
+        entityManager
+            .createQuery("SELECT COUNT(p) FROM MatchParticipant p WHERE p.match.id = :matchId", Long::class.java)
+            .setParameter("matchId", matchId)
+            .singleResult
 }
