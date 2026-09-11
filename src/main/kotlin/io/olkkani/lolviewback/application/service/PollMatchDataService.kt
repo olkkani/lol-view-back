@@ -70,25 +70,41 @@ class PollMatchDataService(
     /**
      * Resolves one [ClubProfile] per distinct team abbreviation across all matches in a
      * single batch: one lookup query, one insert for any missing profiles — instead of a
-     * round trip per team per match.
+     * round trip per team per match. The API's "TBD" code (an undecided bracket slot) is
+     * special-cased to always resolve to the single pre-seeded canonical TBD profile
+     * (migration V1.8) rather than being treated as a new team to create — this guarantees
+     * exactly one stable club_profile_id for every TBD slot, across all matches and polls.
      */
     private suspend fun resolveClubProfiles(matches: List<MatchScheduleEvent>): Map<String, ClubProfile> {
         val teamsByAbbreviation = matches.flatMap { it.match.teams }.associateBy { it.code }
+        val realTeamAbbreviations = teamsByAbbreviation.keys - TBD_ABBREVIATION
 
         val existingProfiles =
             withContext(Dispatchers.IO) {
-                clubProfileRepository.findByAbbreviationIn(teamsByAbbreviation.keys)
+                clubProfileRepository.findByAbbreviationIn(realTeamAbbreviations)
             }.associateBy { it.abbreviation }
 
-        val missingTeams = teamsByAbbreviation.filterKeys { it !in existingProfiles }.values
-        if (missingTeams.isEmpty()) return existingProfiles
-
-        // TODO: New Club Alert
-        val newProfiles =
+        val missingTeams = teamsByAbbreviation.filterKeys { it != TBD_ABBREVIATION && it !in existingProfiles }.values
+        val newProfiles = if (missingTeams.isEmpty()) {
+            emptyMap()
+        } else {
+            // TODO: New Club Alert
             withContext(Dispatchers.IO) {
                 clubProfileRepository.saveAll(missingTeams.map { it.toProfileEntity() })
             }.associateBy { it.abbreviation }
+        }
 
-        return existingProfiles + newProfiles
+        val resolved = existingProfiles + newProfiles
+        if (TBD_ABBREVIATION !in teamsByAbbreviation) return resolved
+
+        val tbdProfile = withContext(Dispatchers.IO) {
+            clubProfileRepository.findByAbbreviation(TBD_ABBREVIATION)
+        } ?: error("Canonical TBD club_profiles row is missing — migration V1.8 must have run")
+
+        return resolved + (TBD_ABBREVIATION to tbdProfile)
+    }
+
+    private companion object {
+        const val TBD_ABBREVIATION = "TBD"
     }
 }

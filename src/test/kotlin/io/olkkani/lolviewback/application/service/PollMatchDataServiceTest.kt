@@ -238,6 +238,51 @@ class PollMatchDataServiceTest {
     }
 
     @Test
+    fun `resolves a TBD team to the pre-seeded canonical profile without creating a new one`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-tbd", teams = listOf(team("T1"), team("TBD")))
+        val tbdProfile = clubProfile("TBD", club = null)
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1"))
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
+        val savedParticipants = slot<List<MatchParticipant>>()
+        every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
+
+        service.syncUpcomingMatches()
+
+        verify(exactly = 0) { clubProfileRepository.saveAll(any<List<ClubProfile>>()) }
+        assertEquals(2, savedParticipants.captured.size)
+        assertTrue(savedParticipants.captured.any { it.clubProfile.abbreviation == "TBD" && it.clubProfile.id == tbdProfile.id })
+    }
+
+    @Test
+    fun `both slots TBD on the same match resolve to a single shared participant row`() = runBlocking {
+        val league = league()
+        val tournament = tournament(league)
+        val event = scheduleEvent("match-both-tbd", teams = listOf(team("TBD"), team("TBD")))
+        val tbdProfile = clubProfile("TBD", club = null)
+
+        every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
+        every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
+        coEvery { apiClientPort.fetchMatches(league.leagueApiId) } returns listOf(event)
+        stubUpsertMatches()
+        every { clubProfileRepository.findByAbbreviationIn(emptySet()) } returns emptyList()
+        every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
+        val savedParticipants = slot<List<MatchParticipant>>()
+        every { matchPollingDao.upsertParticipants(capture(savedParticipants)) } returns Unit
+
+        service.syncUpcomingMatches()
+
+        assertEquals(2, savedParticipants.captured.size)
+        assertTrue(savedParticipants.captured.all { it.clubProfile.abbreviation == "TBD" })
+    }
+
+    @Test
     fun `re-polling the same match does not duplicate the upsertMatches input across two runs`() = runBlocking {
         val league = league()
         val tournament = tournament(league)
