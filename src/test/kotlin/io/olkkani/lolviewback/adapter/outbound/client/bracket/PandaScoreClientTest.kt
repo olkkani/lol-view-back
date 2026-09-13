@@ -116,4 +116,48 @@ class PandaScoreClientTest {
 
         assertEquals("Bearer secret-token-value", capturedAuthHeader)
     }
+
+    @Test
+    fun `retries when the server resets the connection before responding`() {
+        val attempts = java.util.concurrent.atomic.AtomicInteger(0)
+        val body = "[]"
+
+        server =
+            HttpServer.create()
+                .host("localhost")
+                .route { routes ->
+                    routes.get("/tournaments/21722/brackets") { _, response ->
+                        if (attempts.getAndIncrement() == 0) {
+                            response
+                                .withConnection { connection ->
+                                    val channel = connection.channel() as io.netty.channel.socket.SocketChannel
+                                    channel.config().setOption(io.netty.channel.ChannelOption.SO_LINGER, 0)
+                                    channel.close()
+                                }.then()
+                        } else {
+                            response
+                                .header("Content-Type", "application/json")
+                                .sendString(Mono.just(body))
+                        }
+                    }
+                }
+                .bindNow()
+
+        val client =
+            PandaScoreClient(
+                properties =
+                    PandaScoreProperties(
+                        token = "test-token",
+                        url = PandaScoreProperties.Url(
+                            brackets = "http://localhost:${server!!.port()}/tournaments/",
+                        ),
+                    ),
+                webClientBuilder = WebClient.builder(),
+            )
+
+        val result = runBlocking { client.fetchBrackets("21722") }
+
+        assertEquals(emptyList(), result)
+        assertEquals(2, attempts.get(), "expected exactly one retry after the reset attempt")
+    }
 }
