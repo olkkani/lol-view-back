@@ -84,6 +84,11 @@ class BracketMatchDao(
             .fetch { record -> recordToBracketMatch(record) }
     }
 
+    fun findByTournamentId(tournamentId: String): List<BracketMatch> =
+        dsl.selectFrom(bracketMatches)
+            .where(bracketMatches.TOURNAMENT_ID.eq(tournamentId))
+            .fetch { record -> recordToBracketMatch(record) }
+
     /**
      * Maps a jOOQ bracket_matches Record to a BracketMatch entity. Extracted
      * so Task 8's findByTournamentId (a read method on this same DAO) can
