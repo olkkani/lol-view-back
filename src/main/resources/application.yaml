@@ -52,6 +52,10 @@ lol-api:
     tournament: ${LOL_API_URL_TOURNAMENT}
     match: ${LOL_API_URL_MATCH}
     sets: ${LOL_API_URL_SETS}
+pandascore-api:
+  token: ${PANDASCORE_API_TOKEN}
+  url:
+    brackets: ${PANDASCORE_API_URL_BRACKETS}
 
 --- # server-local
 spring:
