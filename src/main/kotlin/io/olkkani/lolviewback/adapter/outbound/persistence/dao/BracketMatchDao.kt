@@ -69,6 +69,7 @@ class BracketMatchDao(
                 .set(bracketMatches.STATUS, match.status)
                 .set(bracketMatches.WINNER_ID, match.winnerId)
                 .set(bracketMatches.WINNER_TYPE, match.winnerType)
+                .set(bracketMatches.BEGIN_AT, match.beginAt?.let { OffsetDateTime.parse(it).toLocalDateTime() })
                 .set(bracketMatches.END_AT, match.endAt?.let { OffsetDateTime.parse(it).toLocalDateTime() })
                 .set(bracketMatches.PREVIOUS_MATCHES, JSONB.valueOf(match.previousMatches.toString()))
                 .set(bracketMatches.OPPONENTS, JSONB.valueOf(match.opponents.toString()))
