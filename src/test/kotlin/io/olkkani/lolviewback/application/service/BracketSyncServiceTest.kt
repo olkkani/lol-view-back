@@ -9,8 +9,11 @@ import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatc
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentProviderMappingRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.TournamentProviderMapping
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class BracketSyncServiceTest {
     @Test
@@ -56,17 +59,72 @@ class BracketSyncServiceTest {
         every { mappingRepository.findAll() } returns listOf(mapping)
         coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
 
-        val service = BracketSyncService(mappingRepository, client, dao)
+        // Fixed clock: both ticks land at the exact same instant, so this
+        // test proves suppression independent of how fast the test executes
+        // (a real-clock version would be flaky if it ever ran slower than
+        // the 1-hour window, however unlikely that is).
+        val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
+        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { fixedNow })
 
-        // Two consecutive sync ticks, same failure — this test documents the
-        // rate-limiting behavior exists; asserting the exact log-call count
-        // requires injecting a test Logger appender, which is out of scope
-        // for this minimal test. This test instead verifies the service
-        // does not throw/propagate on repeated failures (the caller —
-        // the scheduler — must never see an exception here).
+        // Two consecutive sync ticks, same failure, well within the
+        // suppression window (same instant). The sync attempt itself must
+        // still happen both times — only the redundant *logging* is
+        // suppressed, the tournament is never skipped from retrying.
         runBlocking {
             service.syncAllMappedTournaments()
             service.syncAllMappedTournaments()
+        }
+
+        coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
+    }
+
+    @Test
+    fun `does log again once the suppression window has elapsed`() {
+        val mappingRepository = mockk<TournamentProviderMappingRepository>()
+        val client = mockk<PandaScoreClient>()
+        val dao = mockk<BracketMatchDao>(relaxed = true)
+
+        val mapping =
+            TournamentProviderMapping(
+                lolesportsTournamentId = "lol-tournament-1",
+                pandascoreTournamentId = "pandascore-1",
+            )
+
+        every { mappingRepository.findAll() } returns listOf(mapping)
+        coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
+
+        var now = Instant.parse("2026-01-01T00:00:00Z")
+        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { now })
+
+        runBlocking {
+            service.syncAllMappedTournaments()
+            // Advance well past the 1-hour suppression window.
+            now = now.plusSeconds(3_600 * 2)
+            service.syncAllMappedTournaments()
+        }
+
+        coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
+    }
+
+    @Test
+    fun `propagates CancellationException instead of treating it as an ordinary sync failure`() {
+        val mappingRepository = mockk<TournamentProviderMappingRepository>()
+        val client = mockk<PandaScoreClient>()
+        val dao = mockk<BracketMatchDao>(relaxed = true)
+
+        val mapping =
+            TournamentProviderMapping(
+                lolesportsTournamentId = "lol-tournament-1",
+                pandascoreTournamentId = "pandascore-1",
+            )
+
+        every { mappingRepository.findAll() } returns listOf(mapping)
+        coEvery { client.fetchBrackets("pandascore-1") } throws CancellationException("coroutine cancelled")
+
+        val service = BracketSyncService(mappingRepository, client, dao)
+
+        assertThrows(CancellationException::class.java) {
+            runBlocking { service.syncAllMappedTournaments() }
         }
     }
 }

@@ -3,6 +3,7 @@ package io.olkkani.lolviewback.application.service
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.PandaScoreClient
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentProviderMappingRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -16,6 +17,7 @@ class BracketSyncService(
     private val tournamentProviderMappingRepository: TournamentProviderMappingRepository,
     private val pandaScoreClient: PandaScoreClient,
     private val bracketMatchDao: BracketMatchDao,
+    private val nowProvider: () -> Instant = Instant::now,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -37,21 +39,38 @@ class BracketSyncService(
                 withContext(Dispatchers.IO) {
                     bracketMatchDao.upsertMatches(mapping.lolesportsTournamentId, matches)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logFailureRateLimited(mapping.lolesportsTournamentId, e)
             }
         }
     }
 
+    /**
+     * Returns true if a failure for [lolesportsTournamentId] should be logged
+     * right now (first-ever failure, or the suppression window has elapsed
+     * since the last logged failure), and records that a log just happened
+     * when it returns true. Extracted from [logFailureRateLimited] so the
+     * suppression decision itself can be unit-tested without asserting on
+     * log output.
+     */
+    private fun shouldLogFailureNow(lolesportsTournamentId: String): Boolean {
+        val now = nowProvider()
+        val lastLogged = lastFailureLoggedAt[lolesportsTournamentId]
+        val shouldLog = lastLogged == null || Duration.between(lastLogged, now) > logSuppressionWindow
+        if (shouldLog) {
+            lastFailureLoggedAt[lolesportsTournamentId] = now
+        }
+        return shouldLog
+    }
+
     private fun logFailureRateLimited(
         lolesportsTournamentId: String,
         e: Exception,
     ) {
-        val now = Instant.now()
-        val lastLogged = lastFailureLoggedAt[lolesportsTournamentId]
-        if (lastLogged == null || Duration.between(lastLogged, now) > logSuppressionWindow) {
+        if (shouldLogFailureNow(lolesportsTournamentId)) {
             log.error("Failed to sync bracket for tournament $lolesportsTournamentId, skipping", e)
-            lastFailureLoggedAt[lolesportsTournamentId] = now
         }
     }
 }
