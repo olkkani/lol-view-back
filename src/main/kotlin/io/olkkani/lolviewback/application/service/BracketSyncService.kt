@@ -6,6 +6,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -18,9 +19,8 @@ class BracketSyncService(
     private val pandaScoreClient: PandaScoreClient,
     private val bracketMatchDao: BracketMatchDao,
     private val nowProvider: () -> Instant = Instant::now,
+    private val log: Logger = LoggerFactory.getLogger(BracketSyncService::class.java),
 ) {
-    private val log = LoggerFactory.getLogger(javaClass)
-
     // Log-spam guard: an unmapped or persistently-failing tournament must not
     // log once per 5-minute tick forever. Rate-limited to once per hour per
     // lolesports tournament id.

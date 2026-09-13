@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.PandaScoreClient
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatch
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentProviderMappingRepository
@@ -13,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.slf4j.Logger
 import java.time.Instant
 
 class BracketSyncServiceTest {
@@ -49,6 +51,7 @@ class BracketSyncServiceTest {
         val mappingRepository = mockk<TournamentProviderMappingRepository>()
         val client = mockk<PandaScoreClient>()
         val dao = mockk<BracketMatchDao>(relaxed = true)
+        val log = mockk<Logger>(relaxed = true)
 
         val mapping =
             TournamentProviderMapping(
@@ -64,18 +67,21 @@ class BracketSyncServiceTest {
         // (a real-clock version would be flaky if it ever ran slower than
         // the 1-hour window, however unlikely that is).
         val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { fixedNow })
+        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { fixedNow }, log = log)
 
         // Two consecutive sync ticks, same failure, well within the
-        // suppression window (same instant). The sync attempt itself must
-        // still happen both times — only the redundant *logging* is
-        // suppressed, the tournament is never skipped from retrying.
+        // suppression window (same instant). The sync attempt itself still
+        // happens both times (proven separately by the fetchBrackets
+        // verification below), but the second tick's failure must NOT
+        // reach the logger — this is the actual behavior under test, not a
+        // proxy for it.
         runBlocking {
             service.syncAllMappedTournaments()
             service.syncAllMappedTournaments()
         }
 
         coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
+        verify(exactly = 1) { log.error(any(), any<Throwable>()) }
     }
 
     @Test
@@ -83,6 +89,7 @@ class BracketSyncServiceTest {
         val mappingRepository = mockk<TournamentProviderMappingRepository>()
         val client = mockk<PandaScoreClient>()
         val dao = mockk<BracketMatchDao>(relaxed = true)
+        val log = mockk<Logger>(relaxed = true)
 
         val mapping =
             TournamentProviderMapping(
@@ -94,7 +101,7 @@ class BracketSyncServiceTest {
         coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
 
         var now = Instant.parse("2026-01-01T00:00:00Z")
-        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { now })
+        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { now }, log = log)
 
         runBlocking {
             service.syncAllMappedTournaments()
@@ -104,6 +111,7 @@ class BracketSyncServiceTest {
         }
 
         coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
+        verify(exactly = 2) { log.error(any(), any<Throwable>()) }
     }
 
     @Test
