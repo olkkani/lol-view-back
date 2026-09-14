@@ -13,7 +13,6 @@ dependency-management = "1.1.7"
 osDetector = "1.7.3"
 coroutines = "1.8.1"
 # Library versions
-jacksonKotlin = "2.18.2"
 tsid = "2.1.4"
 hypersistence-utils = "3.15.4" # for tsid https://github.com/vladmihalcea/hypersistence-utils
 p6spy = "1.10.0"
@@ -98,14 +97,13 @@ tsid = { module = "io.hypersistence:hypersistence-tsid", version.ref = "tsid"}
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm", version.ref = "coroutines" }
 coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor", version.ref = "coroutines" }
 kotlin-reactor-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions", version = "1.2.3" }
-kotlin-jackson = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jacksonKotlin" }
 commons-text = { module = "org.apache.commons:commons-text", version = "1.13.0" }
 dns-native-mac = { module = "io.netty:netty-resolver-dns-native-macos", version = "4.1.115.Final" }
 
 
 
 [bundles]
-common = ["commons-text", "kotlin-jackson"]
+common = ["commons-text"]
 test = ["junit", "junit-engine", "junit-platform-common","junit-platform-engine", "junit-platform-launcher", "junit-kotlin", "junit-kotlin-runner", "mockk"]
 kotlin = ["kotlin-stdlib", "kotlin-logging"]
 kotlin-coroutines = ["kotlin-reflect", "coroutines-core", "coroutines-reactor", "kotlin-reactor-extensions"]
