@@ -9,9 +9,15 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.UserRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Role
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.User
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.UserIdentity
+import io.olkkani.lolviewback.application.auth.AuthProvider
+import io.olkkani.lolviewback.application.auth.IdentityAlreadyLinkedException
 import io.olkkani.lolviewback.application.auth.JwtService
 import io.olkkani.lolviewback.application.auth.RefreshTokenService
+import io.olkkani.lolviewback.application.auth.ResolveIdentityService
+import io.olkkani.lolviewback.application.auth.ResolveResult
 import io.olkkani.lolviewback.application.auth.RotateResult
+import io.olkkani.lolviewback.application.auth.TelegramLoginPayload
+import io.olkkani.lolviewback.application.auth.TelegramLoginVerifier
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -29,14 +35,29 @@ class AuthRestControllerTest {
     private val userRepository = mockk<UserRepository>()
     private val jwtService = mockk<JwtService>()
     private val refreshTokenService = mockk<RefreshTokenService>()
+    private val telegramLoginVerifier = mockk<TelegramLoginVerifier>()
+    private val resolveIdentityService = mockk<ResolveIdentityService>()
     private val controller =
         AuthRestController(
             userIdentityRepository,
             userRepository,
             jwtService,
             refreshTokenService,
+            telegramLoginVerifier,
+            resolveIdentityService,
             accessExpirationMinutes = 30L,
             refreshExpirationDays = 14L,
+        )
+
+    private fun telegramPayload(id: Long = 111222333L): TelegramLoginPayload =
+        TelegramLoginPayload(
+            id = id,
+            firstName = "Ada",
+            lastName = null,
+            username = "ada_lovelace",
+            photoUrl = null,
+            authDate = 1_700_000_000L,
+            hash = "deadbeef",
         )
 
     @Test
@@ -111,5 +132,61 @@ class AuthRestControllerTest {
         val setCookies = response.headers[HttpHeaders.SET_COOKIE].orEmpty()
         assertTrue(setCookies.contains(CookieSupport.expiredAccessTokenCookie().toString()))
         assertTrue(setCookies.contains(CookieSupport.expiredRefreshTokenCookie().toString()))
+    }
+
+    @Test
+    fun `telegram callback with an invalid hash returns 401`() {
+        val payload = telegramPayload()
+        every { telegramLoginVerifier.isValid(payload) } returns false
+
+        val response = controller.telegramCallback(payload)
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+        verify(exactly = 0) { resolveIdentityService.resolveIdentity(any(), any(), any()) }
+    }
+
+    @Test
+    fun `telegram callback for a new user sets access and refresh cookies`() {
+        val payload = telegramPayload(id = 111222333L)
+        every { telegramLoginVerifier.isValid(payload) } returns true
+        every {
+            resolveIdentityService.resolveIdentity(AuthProvider.TELEGRAM, "111222333", null)
+        } returns ResolveResult.NewUser(userId = 5L)
+        every { userRepository.findById(5L) } returns Optional.of(User(id = 5L, role = Role.USER))
+        every { jwtService.issueToken(5L, Role.USER) } returns "issued-access-jwt"
+        every { refreshTokenService.issue(5L) } returns "issued-refresh-token"
+
+        val response = controller.telegramCallback(payload)
+
+        assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
+        val setCookies = response.headers[HttpHeaders.SET_COOKIE].orEmpty()
+        assertTrue(setCookies.any { it.startsWith("access_token=issued-access-jwt") })
+        assertTrue(setCookies.any { it.startsWith("refresh_token=issued-refresh-token") })
+    }
+
+    @Test
+    fun `telegram callback for an identity already linked elsewhere returns 409`() {
+        val payload = telegramPayload()
+        every { telegramLoginVerifier.isValid(payload) } returns true
+        every {
+            resolveIdentityService.resolveIdentity(AuthProvider.TELEGRAM, "111222333", null)
+        } returns ResolveResult.AlreadyLinkedElsewhere
+
+        val response = controller.telegramCallback(payload)
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+    }
+
+    @Test
+    fun `telegram callback propagates a concurrent identity-link race as 409`() {
+        val payload = telegramPayload()
+        every { telegramLoginVerifier.isValid(payload) } returns true
+        every {
+            resolveIdentityService.resolveIdentity(AuthProvider.TELEGRAM, "111222333", null)
+        } throws IdentityAlreadyLinkedException()
+
+        val response = controller.telegramCallback(payload)
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
     }
 }
