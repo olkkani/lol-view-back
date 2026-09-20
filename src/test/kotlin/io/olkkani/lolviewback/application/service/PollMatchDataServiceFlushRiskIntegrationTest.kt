@@ -6,12 +6,15 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEven
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventMatch
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventStrategy
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventTeam
+import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueExternalIdRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchParticipantRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.MatchRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LeagueExternalId
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
 import jakarta.persistence.EntityManagerFactory
@@ -153,6 +156,9 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
     lateinit var leagueRepository: LeagueRepository
 
     @Autowired
+    lateinit var leagueExternalIdRepository: LeagueExternalIdRepository
+
+    @Autowired
     lateinit var tournamentRepository: TournamentRepository
 
     @Autowired
@@ -177,15 +183,16 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "flush-risk-league",
             ),
+        )
+        leagueExternalIdRepository.save(
+            LeagueExternalId(entityId = league.id, provider = Provider.LOLESPORTS, externalId = "flush-risk-league"),
         )
         tournamentRepository.save(
             Tournament(
                 tournamentName = "LCK Flush Risk Cup",
                 startDate = LocalDate.now().minusDays(1),
                 endDate = LocalDate.now().plusDays(1),
-                tournamentApiId = "flush-risk-tournament",
                 league = league,
             ),
         )
@@ -274,15 +281,16 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "e2e-tbd-league",
             ),
+        )
+        leagueExternalIdRepository.save(
+            LeagueExternalId(entityId = league.id, provider = Provider.LOLESPORTS, externalId = "e2e-tbd-league"),
         )
         tournamentRepository.save(
             Tournament(
                 tournamentName = "LCK E2E TBD Cup",
                 startDate = LocalDate.now().minusDays(1),
                 endDate = LocalDate.now().plusDays(1),
-                tournamentApiId = "e2e-tbd-tournament",
                 league = league,
             ),
         )

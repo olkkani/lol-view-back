@@ -35,7 +35,6 @@ class ExternalIdLookupServiceTest {
         leagueName = "LCK",
         logoUrl = "https://example.com/lck.png",
         isActive = true,
-        leagueApiId = "legacy-api-id",
     )
 
     private fun tournament(id: Long = 2001L, league: League = league()) = Tournament(
@@ -43,7 +42,6 @@ class ExternalIdLookupServiceTest {
         tournamentName = "LCK 2026 Spring",
         startDate = LocalDate.of(2026, 1, 1),
         endDate = LocalDate.of(2026, 4, 1),
-        tournamentApiId = "legacy-tournament-api-id",
         league = league,
     )
 

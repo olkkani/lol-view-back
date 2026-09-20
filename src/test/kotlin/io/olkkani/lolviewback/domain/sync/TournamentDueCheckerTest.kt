@@ -16,7 +16,6 @@ class TournamentDueCheckerTest {
         leagueName = "MSI",
         logoUrl = "https://example.com/msi.png",
         isActive = true,
-        leagueApiId = "msi-api-id",
     )
 
     @Test
@@ -78,7 +77,6 @@ class TournamentDueCheckerTest {
             tournamentName = "MSI 2025",
             startDate = LocalDate.of(2025, 5, 1),
             endDate = LocalDate.of(2025, 5, 20),
-            tournamentApiId = "msi-2025",
             league = league,
         )
         val today = LocalDate.of(2025, 6, 1)
@@ -114,7 +112,6 @@ class TournamentDueCheckerTest {
             tournamentName = "LCK 2025 Spring",
             startDate = LocalDate.of(2025, 1, 10),
             endDate = LocalDate.of(2025, 3, 30),
-            tournamentApiId = "lck-2025-spring",
             league = league,
         )
         val today = LocalDate.of(2025, 6, 15) // Summer window의 expectedStart(2025-06-01) 이후
@@ -173,7 +170,6 @@ class TournamentDueCheckerTest {
             tournamentName = "LCK 2028 Spring",
             startDate = LocalDate.of(2028, 1, 10),
             endDate = LocalDate.of(2028, 3, 30),
-            tournamentApiId = "lck-2028-spring",
             league = league,
         )
         // Summer는 2년 넘게 안 열림
@@ -311,14 +307,12 @@ class TournamentDueCheckerTest {
                 tournamentName = "MSI 2020",
                 startDate = LocalDate.of(2020, 5, 1),
                 endDate = LocalDate.of(2020, 5, 20),
-                tournamentApiId = "msi-2020",
                 league = league,
             ),
             Tournament(
                 tournamentName = "MSI 2013",
                 startDate = LocalDate.of(2013, 5, 1),
                 endDate = LocalDate.of(2013, 5, 20),
-                tournamentApiId = "msi-2013",
                 league = league,
             ),
         )

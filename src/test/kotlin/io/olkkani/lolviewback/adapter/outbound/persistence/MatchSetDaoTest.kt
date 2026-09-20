@@ -61,14 +61,13 @@ class MatchSetDaoTest {
 
     private fun tournament(): Tournament {
         val league = leagueRepository.save(
-            League(leagueName = "LCK", logoUrl = "https://example.com/lck.png", isActive = true, leagueApiId = "lck-api-id"),
+            League(leagueName = "LCK", logoUrl = "https://example.com/lck.png", isActive = true),
         )
         return tournamentRepository.save(
             Tournament(
                 tournamentName = "LCK Summer 2026",
                 startDate = LocalDate.of(2026, 6, 1),
                 endDate = LocalDate.of(2026, 8, 31),
-                tournamentApiId = "lck-summer-2026",
                 league = league,
             ),
         )

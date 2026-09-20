@@ -60,7 +60,6 @@ class MatchPollingDaoTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "lck-api-id",
             ),
         )
         val tournament = tournamentRepository.save(
@@ -68,7 +67,6 @@ class MatchPollingDaoTest {
                 tournamentName = "LCK Summer 2026",
                 startDate = LocalDate.now().minusDays(3),
                 endDate = LocalDate.now().plusDays(30),
-                tournamentApiId = "lck-summer-2026",
                 league = league,
             ),
         )

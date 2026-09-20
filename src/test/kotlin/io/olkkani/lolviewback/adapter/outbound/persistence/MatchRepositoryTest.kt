@@ -59,7 +59,6 @@ class MatchRepositoryTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "lck-api-id",
             ),
         )
         return tournamentRepository.save(
@@ -67,7 +66,6 @@ class MatchRepositoryTest {
                 tournamentName = "LCK Summer 2026",
                 startDate = LocalDate.of(2026, 6, 1),
                 endDate = LocalDate.of(2026, 8, 31),
-                tournamentApiId = "lck-summer-2026",
                 league = league,
             ),
         )
@@ -292,7 +290,6 @@ class MatchRepositoryTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "lck-api-id-2",
                 logoBackdrop = LogoBackdrop.DARK,
             ),
         )
@@ -311,7 +308,6 @@ class MatchRepositoryTest {
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "lck-api-id-3",
                 logoBackdrop = null,
             ),
         )

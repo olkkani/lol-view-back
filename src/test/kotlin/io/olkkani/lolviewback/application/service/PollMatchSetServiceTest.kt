@@ -31,12 +31,10 @@ class PollMatchSetServiceTest {
             tournamentName = "LCK 2026 Spring",
             startDate = LocalDate.now().minusDays(3),
             endDate = LocalDate.now().plusDays(30),
-            tournamentApiId = "t-1",
             league = League(
                 leagueName = "LCK",
                 logoUrl = "https://example.com/lck.png",
                 isActive = true,
-                leagueApiId = "lck-api-id",
             ),
         ),
     )

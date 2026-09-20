@@ -18,13 +18,11 @@ class MatchMapperTest {
             leagueName = "LCK",
             logoUrl = "https://example.com/lck.png",
             isActive = true,
-            leagueApiId = "league-api-1",
         )
         return Tournament(
             tournamentName = "lck_2025_summer",
             startDate = LocalDate.of(2025, 6, 1),
             endDate = LocalDate.of(2025, 8, 30),
-            tournamentApiId = "tournament-api-1",
             league = league,
         )
     }

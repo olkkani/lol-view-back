@@ -15,7 +15,6 @@ class MatchSyncWindowCheckerTest {
         leagueName = "LCK",
         logoUrl = "https://example.com/lck.png",
         isActive = true,
-        leagueApiId = apiId,
     )
 
     private fun tournament(
@@ -27,7 +26,6 @@ class MatchSyncWindowCheckerTest {
         tournamentName = "LCK 2026 Spring",
         startDate = startDate,
         endDate = endDate,
-        tournamentApiId = apiId,
         league = league,
     )
 
