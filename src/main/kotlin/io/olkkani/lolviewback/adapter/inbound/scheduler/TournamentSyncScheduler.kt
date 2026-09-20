@@ -8,6 +8,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentExternalIdR
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.TournamentExternalId
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import io.olkkani.lolviewback.application.service.ExternalIdLookupService
 import io.olkkani.lolviewback.application.service.MissingExternalIdException
 import io.olkkani.lolviewback.application.sync.TournamentDueChecker
@@ -58,7 +59,8 @@ class TournamentSyncScheduler(
             if (dueWindows.isEmpty()) continue
 
             try {
-                val fetched = runBlocking { apiClient.fetchTournaments(lolesportsId) }
+                val fetched =
+                    runBlocking { apiClient.fetchTournaments(ProviderExternalId(Provider.LOLESPORTS, lolesportsId)) }
                 for (apiResponse in fetched) {
                     if (apiResponse.apiId in existingLolesportsIds) continue
                     val savedTournament = tournamentRepository.save(apiResponse.toEntity(league))

@@ -9,6 +9,7 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchSetApiRespon
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponse
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.TournamentApiResponseWrapper
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import kotlinx.coroutines.reactor.awaitSingle
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.stereotype.Component
@@ -49,11 +50,11 @@ class LolEsportsApiClient(
     private val httpClient = HttpClient.create(connectionProvider).responseTimeout(Duration.ofSeconds(10))
     private val webClient = webClientBuilder.clientConnector(ReactorClientHttpConnector(httpClient)).build()
 
-    override suspend fun fetchTournaments(leagueApiId: String): List<TournamentApiResponse> {
+    override suspend fun fetchTournaments(leagueId: ProviderExternalId): List<TournamentApiResponse> {
         val wrapper =
             webClient
                 .get()
-                .uri("${properties.url.tournament}$leagueApiId")
+                .uri("${properties.url.tournament}${leagueId.value}")
                 .header("x-api-key", properties.key)
                 .retrieve()
                 .bodyToMono(TournamentApiResponseWrapper::class.java)
@@ -62,11 +63,11 @@ class LolEsportsApiClient(
         return wrapper.data.leagues.flatMap { it.tournaments }
     }
 
-    override suspend fun fetchMatchesForLeague(leagueApiId: String): List<MatchApiResponse> {
+    override suspend fun fetchMatchesForLeague(leagueId: ProviderExternalId): List<MatchApiResponse> {
         val wrapper =
             webClient
                 .get()
-                .uri("${properties.url.match}$leagueApiId")
+                .uri("${properties.url.match}${leagueId.value}")
                 .header("x-api-key", properties.key)
                 .retrieve()
                 .bodyToMono(MatchApiResponseWrapper::class.java)
@@ -86,16 +87,16 @@ class LolEsportsApiClient(
      */
     override suspend fun fetchMatchDetail(
         matchApiId: String,
-        leagueApiId: String,
+        leagueId: ProviderExternalId,
     ): MatchApiResponse? =
-        fetchMatchesForLeague(leagueApiId)
+        fetchMatchesForLeague(leagueId)
             .find { it.apiId == matchApiId }
 
-    override suspend fun fetchMatches(leagueApiId: String): List<MatchScheduleEvent> {
+    override suspend fun fetchMatches(leagueId: ProviderExternalId): List<MatchScheduleEvent> {
         val wrapper =
             webClient
                 .get()
-                .uri("${properties.url.match}$leagueApiId")
+                .uri("${properties.url.match}${leagueId.value}")
                 .header("x-api-key", properties.key)
                 .retrieve()
                 .bodyToMono(MatchApiResponseWrapper::class.java)

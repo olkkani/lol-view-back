@@ -24,6 +24,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -110,7 +111,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
         every { clubProfileRepository.findByAbbreviation("TBD") } returns null
@@ -139,7 +140,7 @@ class PollMatchDataServiceTest {
 
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(completedEvent, inProgressEvent)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(completedEvent, inProgressEvent)
 
         service.syncUpcomingMatches()
 
@@ -166,7 +167,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
@@ -187,7 +188,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "NEW")) } returns listOf(clubProfile("T1"))
         every { clubProfileRepository.saveAll(any<List<ClubProfile>>()) } answers { firstArg() }
@@ -214,7 +215,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
@@ -238,7 +239,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1", club = null))
         every { clubProfileRepository.findByAbbreviation("TBD") } returns null
@@ -260,7 +261,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1")) } returns listOf(clubProfile("T1"))
         every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
@@ -285,7 +286,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(emptySet()) } returns emptyList()
         every { clubProfileRepository.findByAbbreviation("TBD") } returns tbdProfile
@@ -308,7 +309,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(any()) } returns listOf(clubProfile("T1"), clubProfile("GEN"))
         every { clubProfileRepository.findByAbbreviation("TBD") } returns null
@@ -331,7 +332,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(eventA, eventB)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(eventA, eventB)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
@@ -366,7 +367,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))
@@ -393,7 +394,7 @@ class PollMatchDataServiceTest {
         every { tournamentPollingDao.findInProgressTournaments() } returns listOf(tournament)
         every { tournamentRepository.getReferenceById(tournament.id) } returns tournament
         every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
-        coEvery { apiClientPort.fetchMatches("lck-api-id") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(event)
         stubUpsertMatches()
         every { clubProfileRepository.findByAbbreviationIn(setOf("T1", "GEN")) } returns
             listOf(clubProfile("T1"), clubProfile("GEN"))

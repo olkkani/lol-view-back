@@ -17,6 +17,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import jakarta.persistence.EntityManagerFactory
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -218,7 +219,7 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
         // seeded tournament besides this test's own doesn't blow up on an unstubbed call,
         // then override just this test's league id with the real scenario event.
         coEvery { apiClientPort.fetchMatches(any()) } returns emptyList()
-        coEvery { apiClientPort.fetchMatches("flush-risk-league") } returns listOf(event)
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "flush-risk-league")) } returns listOf(event)
 
         // Simulate spring.jpa.open-in-view=true's effect: bind one EntityManager to THIS
         // thread for the duration of the call, exactly as OpenEntityManagerInViewFilter
@@ -315,7 +316,7 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
         coEvery { apiClientPort.fetchMatches(any()) } returns emptyList()
 
         // Poll 1: [T1, TBD] — TBD resolves to the pre-seeded canonical profile.
-        coEvery { apiClientPort.fetchMatches("e2e-tbd-league") } returns listOf(eventWith(listOf(t1Team, tbdTeam)))
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "e2e-tbd-league")) } returns listOf(eventWith(listOf(t1Team, tbdTeam)))
         runBlocking { pollMatchDataService.syncUpcomingMatches() }
 
         val savedMatch = matchRepository.findByMatchApiId("e2e-tbd-match")
@@ -328,7 +329,7 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
         // Poll 2: [T1, GEN] — TBD's slot is now resolved to a real team. This batch itself
         // has NO TBD-coded team, so cleanup for this match's now-stale TBD row must not
         // depend on this poll's own batch containing TBD (Fix 3).
-        coEvery { apiClientPort.fetchMatches("e2e-tbd-league") } returns listOf(eventWith(listOf(t1Team, genTeam)))
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "e2e-tbd-league")) } returns listOf(eventWith(listOf(t1Team, genTeam)))
         runBlocking { pollMatchDataService.syncUpcomingMatches() }
 
         val afterSecondPoll = matchParticipantRepository.findByMatchIdIn(listOf(savedMatch.id))

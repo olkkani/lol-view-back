@@ -13,6 +13,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipa
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -45,7 +46,7 @@ class PollMatchDataService(
 
         val unstartedMatches =
             apiClientPort
-                .fetchMatches(lolesportsLeagueId)
+                .fetchMatches(ProviderExternalId(Provider.LOLESPORTS, lolesportsLeagueId))
                 .filter { it.state == MatchApiState.UNSTARTED.toString() }
         if (unstartedMatches.isEmpty()) return
 

@@ -16,6 +16,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LeagueRecurren
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.TournamentExternalId
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import io.olkkani.lolviewback.application.service.ExternalIdLookupService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -130,7 +131,9 @@ class TournamentSyncSchedulerTest {
         // The fetch response returns ONLY the already-known tournament (by its
         // resolved external id) — proving the dedup check, not the due-window
         // gate, is what prevents the save.
-        coEvery { apiClient.fetchTournaments("lolesports-1004") } returns listOf(
+        coEvery {
+            apiClient.fetchTournaments(ProviderExternalId(Provider.LOLESPORTS, "lolesports-1004"))
+        } returns listOf(
             TournamentApiResponse(apiId = "already-synced-id", name = "LCK Split 2 2026", startDate = LocalDate.now().minusMonths(2), endDate = LocalDate.now().minusDays(1)),
         )
 
@@ -154,7 +157,9 @@ class TournamentSyncSchedulerTest {
             externalIdLookupService.resolveAllLeagues(listOf(league), Provider.LOLESPORTS)
         } returns mapOf(1004L to "lolesports-1004")
         every { externalIdLookupService.resolveAllTournaments(emptyList(), Provider.LOLESPORTS) } returns emptyMap()
-        coEvery { apiClient.fetchTournaments("lolesports-1004") } returns listOf(
+        coEvery {
+            apiClient.fetchTournaments(ProviderExternalId(Provider.LOLESPORTS, "lolesports-1004"))
+        } returns listOf(
             TournamentApiResponse(apiId = "new-tournament-id", name = "LCK Split 3 2026", startDate = LocalDate.now(), endDate = LocalDate.now().plusDays(60)),
         )
         every { tournamentRepository.save(capture(newTournamentSlot)) } returns savedTournament

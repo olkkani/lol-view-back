@@ -1,6 +1,8 @@
 package io.olkkani.lolviewback.adapter.outbound.client.sync
 
 import io.olkkani.lolviewback.adapter.config.LolApiProperties
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
+import io.olkkani.lolviewback.application.outbound.ProviderExternalId
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -64,7 +66,10 @@ class LolEsportsApiClientTest {
                 webClientBuilder = WebClient.builder(),
             )
 
-        val result = runBlocking { client.fetchTournaments("98767991302996019") }
+        val result =
+            runBlocking {
+                client.fetchTournaments(ProviderExternalId(Provider.LOLESPORTS, "98767991302996019"))
+            }
 
         assertEquals(emptyList(), result)
         assertEquals(2, attempts.get(), "expected exactly one retry after the reset attempt")
