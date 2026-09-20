@@ -9,7 +9,6 @@ fun TournamentApiResponse.toEntity(league: League): Tournament {
         tournamentName = this.name,
         startDate = this.startDate,
         endDate = this.endDate,
-        tournamentApiId = this.apiId,
         league = league,
     )
 }

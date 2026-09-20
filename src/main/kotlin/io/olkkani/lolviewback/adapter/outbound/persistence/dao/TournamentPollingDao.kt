@@ -37,7 +37,6 @@ class TournamentPollingDao(
             leagueName = leagueName,
             logoUrl = logoUrl,
             isActive = isActive,
-            leagueApiId = leagueApiId,
             logoBackdrop = logoBackdrop?.let { LogoBackdrop.valueOf(it) },
         )
 
@@ -47,7 +46,6 @@ class TournamentPollingDao(
             tournamentName = tournamentName,
             startDate = startDate,
             endDate = endDate,
-            tournamentApiId = tournamentApiId,
             league = league,
         )
 }

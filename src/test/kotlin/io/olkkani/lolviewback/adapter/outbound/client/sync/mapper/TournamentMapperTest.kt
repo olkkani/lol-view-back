@@ -14,7 +14,6 @@ class TournamentMapperTest {
             leagueName = "LCK",
             logoUrl = "https://example.com/lck.png",
             isActive = true,
-            leagueApiId = "league-api-1",
         )
         val response = TournamentApiResponse(
             apiId = "tournament-api-1",
@@ -25,7 +24,6 @@ class TournamentMapperTest {
 
         val entity = response.toEntity(league)
 
-        assertEquals("tournament-api-1", entity.tournamentApiId)
         assertEquals("lck_2025_summer", entity.tournamentName)
         assertEquals(LocalDate.of(2025, 6, 1), entity.startDate)
         assertEquals(LocalDate.of(2025, 8, 30), entity.endDate)
