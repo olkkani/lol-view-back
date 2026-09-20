@@ -26,6 +26,7 @@ testcontainer = "2.0.5" # See spring-boot-testcontainers and sync spring version
 jjwt = "0.12.6"
 postgresql = "42.7.11"
 jooq-docker = "8.0.30"
+jackson-module-kotlin = "3.2.2"
 [libraries]
 # kotlin
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
@@ -45,6 +46,7 @@ spring-oauth2 = { module = "org.springframework.boot:spring-boot-starter-oauth2-
 jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
 jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
 jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin", version.ref = "jackson-module-kotlin" }
 
 # Persistence and DB
 spring-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "spring-boot" }
@@ -103,7 +105,7 @@ dns-native-mac = { module = "io.netty:netty-resolver-dns-native-macos", version 
 
 
 [bundles]
-common = ["commons-text"]
+common = ["commons-text", "jackson-module-kotlin"]
 test = ["junit", "junit-engine", "junit-platform-common","junit-platform-engine", "junit-platform-launcher", "junit-kotlin", "junit-kotlin-runner", "mockk"]
 kotlin = ["kotlin-stdlib", "kotlin-logging"]
 kotlin-coroutines = ["kotlin-reflect", "coroutines-core", "coroutines-reactor", "kotlin-reactor-extensions"]

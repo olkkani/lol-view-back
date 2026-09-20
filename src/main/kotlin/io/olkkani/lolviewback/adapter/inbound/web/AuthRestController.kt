@@ -1,6 +1,7 @@
 package io.olkkani.lolviewback.adapter.inbound.web
 
 import io.olkkani.lolviewback.adapter.inbound.security.CookieSupport
+import io.olkkani.lolviewback.adapter.inbound.web.dto.MeResponse
 import io.olkkani.lolviewback.adapter.inbound.web.dto.UserIdentityResponse
 import io.olkkani.lolviewback.adapter.outbound.persistence.UserIdentityRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.UserRepository
@@ -40,11 +41,16 @@ class AuthRestController(
     @Value("\${jwt.refresh-expiration-days}") private val refreshExpirationDays: Long,
 ) {
     @GetMapping("/me")
-    fun getMe(): List<UserIdentityResponse> {
+    fun getMe(): MeResponse {
         val userId = SecurityContextHolder.getContext().authentication!!.principal as String
-        return userIdentityRepository.findByUserId(userId.toLong()).map {
-            UserIdentityResponse(provider = it.provider, providerUserId = it.providerUserId)
-        }
+        // Role is re-read from the DB (not trusted from the token) so a promotion or demotion
+        // is reflected immediately, consistent with newCookiesResponse.
+        val role = userRepository.findById(userId.toLong()).map { it.role }.orElse(Role.USER)
+        val identities =
+            userIdentityRepository.findByUserId(userId.toLong()).map {
+                UserIdentityResponse(provider = it.provider, providerUserId = it.providerUserId)
+            }
+        return MeResponse(isAdmin = role == Role.ADMIN, identities = identities)
     }
 
     @PostMapping("/refresh")

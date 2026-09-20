@@ -86,9 +86,10 @@ class AuthRestControllerTest {
     }
 
     @Test
-    fun `GET auth me returns the identity list for the authenticated user`() {
+    fun `GET auth me returns isAdmin false and the identity list for a regular user`() {
         SecurityContextHolder.getContext().authentication =
             UsernamePasswordAuthenticationToken("88", null, emptyList<SimpleGrantedAuthority>())
+        every { userRepository.findById(88L) } returns Optional.of(User(id = 88L, role = Role.USER))
         every { userIdentityRepository.findByUserId(88L) } returns
             listOf(
                 UserIdentity(id = 1L, userId = 88L, provider = "GOOGLE", providerUserId = "sub-88"),
@@ -96,9 +97,24 @@ class AuthRestControllerTest {
 
         val result = controller.getMe()
 
-        assert(result.size == 1)
-        assert(result[0].provider == "GOOGLE")
-        assert(result[0].providerUserId == "sub-88")
+        assertEquals(false, result.isAdmin)
+        assert(result.identities.size == 1)
+        assert(result.identities[0].provider == "GOOGLE")
+        assert(result.identities[0].providerUserId == "sub-88")
+
+        SecurityContextHolder.clearContext()
+    }
+
+    @Test
+    fun `GET auth me returns isAdmin true for an admin user`() {
+        SecurityContextHolder.getContext().authentication =
+            UsernamePasswordAuthenticationToken("7", null, emptyList<SimpleGrantedAuthority>())
+        every { userRepository.findById(7L) } returns Optional.of(User(id = 7L, role = Role.ADMIN))
+        every { userIdentityRepository.findByUserId(7L) } returns emptyList()
+
+        val result = controller.getMe()
+
+        assertEquals(true, result.isAdmin)
 
         SecurityContextHolder.clearContext()
     }
