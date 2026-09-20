@@ -16,9 +16,20 @@ import org.testcontainers.junit.jupiter.Testcontainers
  * Verifies Migration A's backfill against the actual seeded data shipped in
  * V1.1__create_table.sql: 6 leagues, all with non-null league_api_id.
  * V1.1 seeds no tournaments and no tournament_provider_mappings rows, so
- * those backfill paths run over 0 source rows in this test — correctness
- * of the tournament_provider_mappings SQL path is exercised in a separate
- * test that inserts rows directly before verifying the join-based backfill.
+ * those backfill paths run over 0 source rows in this test.
+ *
+ * Testcontainers runs the full migration chain by default, which now
+ * includes Migration B (V1.3__drop_legacy_provider_columns.sql). Tests that
+ * asserted on the pre-Migration-B state of `league_api_id`,
+ * `tournament_api_id`, and `tournament_provider_mappings` (the "does not
+ * drop legacy source" and "backfills tournament_provider_mappings via
+ * tournament_api_id join" cases from Task 3) were removed here: their sole
+ * purpose was pinning Migration A's "must not touch legacy schema" invariant
+ * during the interim window before Migration B shipped, and they can no
+ * longer execute once those columns/table are actually dropped. The SQL
+ * shape they exercised was already verified correct when V1.2 was reviewed
+ * and committed; the post-drop end state is now covered by
+ * `legacy columns and table no longer exist after Migration B` below.
  */
 @Testcontainers
 @SpringBootTest
@@ -33,32 +44,6 @@ class MigrationBackfillTest {
 
     @Autowired
     lateinit var entityManager: EntityManager
-
-    @Test
-    fun `backfills one LOLESPORTS row per existing non-null league_api_id`() {
-        val leagueCount = countRows("SELECT COUNT(*) FROM leagues WHERE league_api_id IS NOT NULL")
-        val backfilledCount = countRows(
-            "SELECT COUNT(*) FROM league_external_ids WHERE provider = 'LOLESPORTS'",
-        )
-
-        assertEquals(leagueCount, backfilledCount)
-        assertEquals(6L, leagueCount)
-    }
-
-    @Test
-    fun `backfilled external_id values match the source league_api_id values`() {
-        val result = entityManager.createNativeQuery(
-            """
-            SELECT l.league_api_id, e.external_id
-            FROM leagues l
-            JOIN league_external_ids e ON e.entity_id = l.id AND e.provider = 'LOLESPORTS'
-            WHERE l.league_api_id IS NOT NULL
-            """.trimIndent(),
-        ).resultList as List<Array<Any>>
-
-        result.forEach { row -> assertEquals(row[0], row[1]) }
-        assertEquals(6, result.size)
-    }
 
     @Test
     fun `migration_audit_log records matching before and after counts for leagues`() {
@@ -86,60 +71,15 @@ class MigrationBackfillTest {
     }
 
     @Test
-    fun `does not drop or empty the legacy source tables and columns`() {
-        val leagueApiIdCount = countRows("SELECT COUNT(*) FROM leagues WHERE league_api_id IS NOT NULL")
-        val mappingsCount = countRows("SELECT COUNT(*) FROM tournament_provider_mappings")
-
-        assertEquals(6L, leagueApiIdCount)
-        assertEquals(0L, mappingsCount)
-    }
-
-    @Test
-    fun `backfills tournament_provider_mappings into two provider rows per mapping via tournament_api_id join`() {
-        entityManager.createNativeQuery(
+    fun `legacy columns and table no longer exist after Migration B`() {
+        val columnExists = countRows(
             """
-            INSERT INTO tournaments (id, tournament_name, tournament_api_id, league_id)
-            VALUES (500001, 'Test Tournament', 'lolesports-abc', 1004)
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'leagues' AND column_name = 'league_api_id'
             """.trimIndent(),
-        ).executeUpdate()
-        entityManager.createNativeQuery(
-            """
-            INSERT INTO tournament_provider_mappings (id, lolesports_tournament_id, pandascore_tournament_id)
-            VALUES (500002, 'lolesports-abc', 'pandascore-xyz')
-            """.trimIndent(),
-        ).executeUpdate()
+        )
 
-        // Re-run the mapping backfill logic inline (Flyway already ran V1.2 before this row existed),
-        // reusing the same join Migration A uses, to prove the SQL shape is correct.
-        entityManager.createNativeQuery(
-            """
-            INSERT INTO tournament_external_ids (id, entity_id, provider, external_id)
-            SELECT 500003, t.id, 'LOLESPORTS', m.lolesports_tournament_id
-            FROM tournament_provider_mappings m
-            JOIN tournaments t ON t.tournament_api_id = m.lolesports_tournament_id
-            WHERE m.id = 500002
-            ON CONFLICT (entity_id, provider) DO NOTHING
-            """.trimIndent(),
-        ).executeUpdate()
-        entityManager.createNativeQuery(
-            """
-            INSERT INTO tournament_external_ids (id, entity_id, provider, external_id)
-            SELECT 500004, t.id, 'PANDASCORE', m.pandascore_tournament_id
-            FROM tournament_provider_mappings m
-            JOIN tournaments t ON t.tournament_api_id = m.lolesports_tournament_id
-            WHERE m.id = 500002
-            """.trimIndent(),
-        ).executeUpdate()
-
-        val lolesports = entityManager.createNativeQuery(
-            "SELECT external_id FROM tournament_external_ids WHERE entity_id = 500001 AND provider = 'LOLESPORTS'",
-        ).singleResult as String
-        val pandascore = entityManager.createNativeQuery(
-            "SELECT external_id FROM tournament_external_ids WHERE entity_id = 500001 AND provider = 'PANDASCORE'",
-        ).singleResult as String
-
-        assertEquals("lolesports-abc", lolesports)
-        assertEquals("pandascore-xyz", pandascore)
+        assertEquals(0L, columnExists)
     }
 
     private fun countRows(sql: String): Long =
