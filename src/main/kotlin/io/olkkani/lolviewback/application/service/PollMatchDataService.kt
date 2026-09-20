@@ -10,6 +10,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ class PollMatchDataService(
     private val matchPollingDao: MatchPollingDao,
     private val clubProfileRepository: ClubProfileRepository,
     private val apiClientPort: LolApiClientPort,
+    private val externalIdLookupService: ExternalIdLookupService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -34,9 +36,16 @@ class PollMatchDataService(
     }
 
     private suspend fun syncTournament(inProgressTournament: Tournament) {
+        val lolesportsLeagueId = try {
+            externalIdLookupService.resolveLeague(inProgressTournament.league, Provider.LOLESPORTS)
+        } catch (e: MissingExternalIdException) {
+            log.warn("Skipping tournament {} — {}", inProgressTournament.id, e.message)
+            return
+        }
+
         val unstartedMatches =
             apiClientPort
-                .fetchMatches(inProgressTournament.league.leagueApiId)
+                .fetchMatches(lolesportsLeagueId)
                 .filter { it.state == MatchApiState.UNSTARTED.toString() }
         if (unstartedMatches.isEmpty()) return
 
