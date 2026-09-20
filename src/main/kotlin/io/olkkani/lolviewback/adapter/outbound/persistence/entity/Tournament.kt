@@ -16,7 +16,6 @@ class Tournament(
     var tournamentName: String,
     var startDate: LocalDate,
     var endDate: LocalDate,
-    var tournamentApiId: String,
     @ManyToOne @JoinColumn(name = "league_id")
     var league: League,
 )

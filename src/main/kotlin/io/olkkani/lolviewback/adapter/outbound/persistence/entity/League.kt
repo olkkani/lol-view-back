@@ -15,7 +15,6 @@ class League(
     var leagueName: String,
     var logoUrl: String,
     var isActive: Boolean,
-    var leagueApiId: String,
 
     @Enumerated(EnumType.STRING)
     var logoBackdrop: LogoBackdrop? = null,
