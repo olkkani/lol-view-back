@@ -115,6 +115,24 @@ class TournamentProviderMappingBackfillMigrationTest {
                     rowCount = rs.getInt("c")
                 }
                 assertEquals(2, rowCount)
+
+                // Regression coverage for the migration_audit_log row_count_before fix:
+                // this tournament has BOTH a non-null tournament_api_id AND a mapping row,
+                // so its LOLESPORTS mapping-backfill insert is a no-op (ON CONFLICT DO
+                // NOTHING) - only its PANDASCORE row is a genuinely new insert from the
+                // mapping pass. row_count_before must equal row_count_after for this
+                // scenario, proving the formula no longer double-counts the LOLESPORTS side.
+                var rowCountBefore = -1
+                var rowCountAfter = -1
+                stmt.executeQuery(
+                    """SELECT "row_count_before", "row_count_after" FROM "migration_audit_log"
+                       WHERE "migration_version" = 'V1.2' AND "table_name" = 'tournament_external_ids'""",
+                ).use { rs ->
+                    rs.next()
+                    rowCountBefore = rs.getInt("row_count_before")
+                    rowCountAfter = rs.getInt("row_count_after")
+                }
+                assertEquals(rowCountAfter, rowCountBefore)
             }
         }
     }

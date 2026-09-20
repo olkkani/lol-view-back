@@ -15,6 +15,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.slf4j.Logger
 import java.time.Instant
 import java.time.LocalDate
@@ -98,5 +99,72 @@ class BracketSyncServiceTest {
         }
 
         verify(exactly = 1) { log.error(any<String>(), any<Throwable>()) }
+    }
+
+    @Test
+    fun `does log again once the suppression window has elapsed`() {
+        val tournament101 = tournament(101L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L)
+        every { tournamentRepository.findAllById(listOf(101L)) } returns listOf(tournament101)
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS) } returns "lol-101"
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.PANDASCORE) } returns "panda-101"
+        coEvery { client.fetchBrackets("panda-101") } throws RuntimeException("PandaScore 500")
+        val log = mockk<Logger>(relaxed = true)
+
+        var now = Instant.parse("2026-01-01T00:00:00Z")
+        val service = BracketSyncService(
+            tournamentRepository, externalIdLookupService, client, dao,
+            nowProvider = { now }, log = log,
+        )
+
+        runBlocking {
+            service.syncAllMappedTournaments()
+            // Advance well past the 1-hour suppression window.
+            now = now.plusSeconds(3_600 * 2)
+            service.syncAllMappedTournaments()
+        }
+
+        verify(exactly = 2) { log.error(any<String>(), any<Throwable>()) }
+    }
+
+    @Test
+    fun `propagates CancellationException instead of treating it as an ordinary sync failure`() {
+        val tournament101 = tournament(101L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L)
+        every { tournamentRepository.findAllById(listOf(101L)) } returns listOf(tournament101)
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS) } returns "lol-101"
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.PANDASCORE) } returns "panda-101"
+        coEvery { client.fetchBrackets("panda-101") } throws CancellationException("coroutine cancelled")
+
+        val service = BracketSyncService(tournamentRepository, externalIdLookupService, client, dao)
+
+        assertThrows<CancellationException> {
+            runBlocking { service.syncAllMappedTournaments() }
+        }
+    }
+
+    @Test
+    fun `a tournament missing an external id mapping is skipped without aborting the rest of the batch`() {
+        val tournament101 = tournament(101L)
+        val tournament102 = tournament(102L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L, 102L)
+        every { tournamentRepository.findAllById(listOf(101L, 102L)) } returns listOf(tournament101, tournament102)
+        every {
+            externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS)
+        } throws MissingExternalIdException("Tournament", 101L, Provider.LOLESPORTS)
+        every { externalIdLookupService.resolveTournament(tournament102, Provider.LOLESPORTS) } returns "lol-102"
+        every { externalIdLookupService.resolveTournament(tournament102, Provider.PANDASCORE) } returns "panda-102"
+        coEvery { client.fetchBrackets("panda-102") } returns emptyList<PandaScoreMatch>()
+
+        val service = BracketSyncService(tournamentRepository, externalIdLookupService, client, dao)
+        runBlocking { service.syncAllMappedTournaments() }
+
+        coVerify(exactly = 1) { dao.upsertMatches("lol-102", emptyList()) }
     }
 }

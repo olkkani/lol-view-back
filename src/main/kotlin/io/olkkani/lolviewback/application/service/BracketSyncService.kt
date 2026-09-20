@@ -40,8 +40,15 @@ class BracketSyncService(
             }
 
         for (tournament in tournaments) {
-            val lolesportsId = externalIdLookupService.resolveTournament(tournament, Provider.LOLESPORTS)
-            val pandascoreId = externalIdLookupService.resolveTournament(tournament, Provider.PANDASCORE)
+            val lolesportsId: String
+            val pandascoreId: String
+            try {
+                lolesportsId = externalIdLookupService.resolveTournament(tournament, Provider.LOLESPORTS)
+                pandascoreId = externalIdLookupService.resolveTournament(tournament, Provider.PANDASCORE)
+            } catch (e: MissingExternalIdException) {
+                log.warn("Skipping tournament {} — {}", tournament.id, e.message)
+                continue
+            }
             try {
                 val matches = pandaScoreClient.fetchBrackets(pandascoreId)
                 withContext(Dispatchers.IO) {

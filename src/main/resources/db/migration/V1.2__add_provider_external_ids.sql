@@ -36,12 +36,18 @@ CREATE TABLE "migration_audit_log"
 );
 
 -- Backfill leagues.league_api_id -> league_external_ids (provider=LOLESPORTS).
--- id values below start at 900000000000000001 to avoid clashing with TSID-
--- generated ids produced by the application at runtime (TSIDs are time-
--- ordered 64-bit values well below this range for the foreseeable future;
--- picking a manifestly separate numeric range for migration-seeded rows is
--- the same defensive pattern used for sentinel ids in this codebase, e.g.
--- V1.1's club_profiles TBD row id 999999999).
+-- id values below start at 900000000000000001, a numeric range chosen to be
+-- distinct from TSID-generated ids at the time this migration was written
+-- (September 2026). NOTE: this is a narrow, time-limited safety margin, not
+-- a permanent one — TSIDs are time-ordered and will reach this range within
+-- weeks of this migration's authoring date. This range is safe here only
+-- because the backfill occupies a microsecond-scale window of id-space with
+-- randomized low bits, making an actual collision with a concurrently-
+-- generated runtime TSID astronomically unlikely even this close to the
+-- boundary. Do NOT copy this pattern for a future migration without
+-- re-deriving a fresh, currently-safe range against the TSID epoch at that
+-- time — prefer a DB-generated identity/sequence column instead if this
+-- migration's approach needs to be repeated.
 INSERT INTO "league_external_ids" ("id", "entity_id", "provider", "external_id")
 SELECT
     900000000000000000 + ROW_NUMBER() OVER (ORDER BY id),
@@ -97,11 +103,20 @@ SELECT
     (SELECT COUNT(*) FROM "leagues" WHERE league_api_id IS NOT NULL),
     (SELECT COUNT(*) FROM "league_external_ids" WHERE provider = 'LOLESPORTS');
 
+-- row_count_before must mirror the ON CONFLICT semantics of the two
+-- mapping-backfill INSERTs above: every mapping always contributes its
+-- PANDASCORE row (never conflicts), but its LOLESPORTS row is a no-op
+-- when the tournament already has its own tournament_api_id (already
+-- counted by the first term below) — only count it here when it isn't.
 INSERT INTO "migration_audit_log" ("id", "migration_version", "table_name", "row_count_before", "row_count_after")
 SELECT
     900000000000400002,
     'V1.2',
     'tournament_external_ids',
     (SELECT COUNT(*) FROM "tournaments" WHERE tournament_api_id IS NOT NULL)
-        + (SELECT COUNT(*) FROM "tournament_provider_mappings") * 2,
+        + (SELECT COUNT(*) FROM "tournament_provider_mappings" m
+           JOIN "tournaments" t ON t.tournament_api_id = m.lolesports_tournament_id)
+        + (SELECT COUNT(*) FROM "tournament_provider_mappings" m
+           JOIN "tournaments" t ON t.tournament_api_id = m.lolesports_tournament_id
+           WHERE t.tournament_api_id IS NULL),
     (SELECT COUNT(*) FROM "tournament_external_ids");
