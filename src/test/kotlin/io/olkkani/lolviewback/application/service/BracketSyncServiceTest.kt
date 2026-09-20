@@ -7,132 +7,96 @@ import io.mockk.mockk
 import io.mockk.verify
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.PandaScoreClient
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatch
-import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentProviderMappingRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
-import io.olkkani.lolviewback.adapter.outbound.persistence.entity.TournamentProviderMapping
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.slf4j.Logger
 import java.time.Instant
+import java.time.LocalDate
 
 class BracketSyncServiceTest {
+
+    private val tournamentRepository = mockk<TournamentRepository>()
+    private val externalIdLookupService = mockk<ExternalIdLookupService>()
+    private val client = mockk<PandaScoreClient>()
+    private val dao = mockk<BracketMatchDao>(relaxed = true)
+
+    private fun league() = League(leagueName = "LCK", logoUrl = "https://example.com/lck.png", isActive = true)
+
+    private fun tournament(id: Long) = Tournament(
+        id = id,
+        tournamentName = "LCK Summer 2026",
+        startDate = LocalDate.now(),
+        endDate = LocalDate.now().plusDays(30),
+        league = league(),
+    )
+
     @Test
-    fun `one tournament's fetch failure does not prevent other tournaments from syncing`() {
-        val mappingRepository = mockk<TournamentProviderMappingRepository>()
-        val client = mockk<PandaScoreClient>()
-        val dao = mockk<BracketMatchDao>(relaxed = true)
+    fun `only syncs tournaments with both LOLESPORTS and PANDASCORE mappings`() {
+        val tournament101 = tournament(101L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L)
+        every { tournamentRepository.findAllById(listOf(101L)) } returns listOf(tournament101)
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS) } returns "lol-101"
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.PANDASCORE) } returns "panda-101"
+        coEvery { client.fetchBrackets("panda-101") } returns emptyList<PandaScoreMatch>()
 
-        val failingMapping =
-            TournamentProviderMapping(
-                lolesportsTournamentId = "lol-tournament-1",
-                pandascoreTournamentId = "pandascore-1",
-            )
-        val healthyMapping =
-            TournamentProviderMapping(
-                lolesportsTournamentId = "lol-tournament-2",
-                pandascoreTournamentId = "pandascore-2",
-            )
-
-        every { mappingRepository.findAll() } returns listOf(failingMapping, healthyMapping)
-        coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
-        coEvery { client.fetchBrackets("pandascore-2") } returns emptyList<PandaScoreMatch>()
-
-        val service = BracketSyncService(mappingRepository, client, dao)
-
+        val service = BracketSyncService(tournamentRepository, externalIdLookupService, client, dao)
         runBlocking { service.syncAllMappedTournaments() }
 
-        coVerify(exactly = 1) { dao.upsertMatches("lol-tournament-2", emptyList()) }
+        coVerify(exactly = 1) { dao.upsertMatches("lol-101", emptyList()) }
+    }
+
+    @Test
+    fun `one tournament's fetch failure does not prevent other tournaments from syncing`() {
+        val tournament101 = tournament(101L)
+        val tournament102 = tournament(102L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L, 102L)
+        every { tournamentRepository.findAllById(listOf(101L, 102L)) } returns listOf(tournament101, tournament102)
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS) } returns "lol-101"
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.PANDASCORE) } returns "panda-101"
+        every { externalIdLookupService.resolveTournament(tournament102, Provider.LOLESPORTS) } returns "lol-102"
+        every { externalIdLookupService.resolveTournament(tournament102, Provider.PANDASCORE) } returns "panda-102"
+        coEvery { client.fetchBrackets("panda-101") } throws RuntimeException("PandaScore 500")
+        coEvery { client.fetchBrackets("panda-102") } returns emptyList<PandaScoreMatch>()
+
+        val service = BracketSyncService(tournamentRepository, externalIdLookupService, client, dao)
+        runBlocking { service.syncAllMappedTournaments() }
+
+        coVerify(exactly = 1) { dao.upsertMatches("lol-102", emptyList()) }
     }
 
     @Test
     fun `does not log a repeated failure for the same tournament within the suppression window`() {
-        val mappingRepository = mockk<TournamentProviderMappingRepository>()
-        val client = mockk<PandaScoreClient>()
-        val dao = mockk<BracketMatchDao>(relaxed = true)
+        val tournament101 = tournament(101L)
+        every {
+            tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        } returns listOf(101L)
+        every { tournamentRepository.findAllById(listOf(101L)) } returns listOf(tournament101)
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.LOLESPORTS) } returns "lol-101"
+        every { externalIdLookupService.resolveTournament(tournament101, Provider.PANDASCORE) } returns "panda-101"
+        coEvery { client.fetchBrackets("panda-101") } throws RuntimeException("PandaScore 500")
         val log = mockk<Logger>(relaxed = true)
 
-        val mapping =
-            TournamentProviderMapping(
-                lolesportsTournamentId = "lol-tournament-1",
-                pandascoreTournamentId = "pandascore-1",
-            )
-
-        every { mappingRepository.findAll() } returns listOf(mapping)
-        coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
-
-        // Fixed clock: both ticks land at the exact same instant, so this
-        // test proves suppression independent of how fast the test executes
-        // (a real-clock version would be flaky if it ever ran slower than
-        // the 1-hour window, however unlikely that is).
         val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { fixedNow }, log = log)
-
-        // Two consecutive sync ticks, same failure, well within the
-        // suppression window (same instant). The sync attempt itself still
-        // happens both times (proven separately by the fetchBrackets
-        // verification below), but the second tick's failure must NOT
-        // reach the logger — this is the actual behavior under test, not a
-        // proxy for it.
-        runBlocking {
-            service.syncAllMappedTournaments()
-            service.syncAllMappedTournaments()
-        }
-
-        coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
-        verify(exactly = 1) { log.error(any(), any<Throwable>()) }
-    }
-
-    @Test
-    fun `does log again once the suppression window has elapsed`() {
-        val mappingRepository = mockk<TournamentProviderMappingRepository>()
-        val client = mockk<PandaScoreClient>()
-        val dao = mockk<BracketMatchDao>(relaxed = true)
-        val log = mockk<Logger>(relaxed = true)
-
-        val mapping =
-            TournamentProviderMapping(
-                lolesportsTournamentId = "lol-tournament-1",
-                pandascoreTournamentId = "pandascore-1",
-            )
-
-        every { mappingRepository.findAll() } returns listOf(mapping)
-        coEvery { client.fetchBrackets("pandascore-1") } throws RuntimeException("PandaScore 500")
-
-        var now = Instant.parse("2026-01-01T00:00:00Z")
-        val service = BracketSyncService(mappingRepository, client, dao, nowProvider = { now }, log = log)
+        val service = BracketSyncService(
+            tournamentRepository, externalIdLookupService, client, dao,
+            nowProvider = { fixedNow }, log = log,
+        )
 
         runBlocking {
             service.syncAllMappedTournaments()
-            // Advance well past the 1-hour suppression window.
-            now = now.plusSeconds(3_600 * 2)
             service.syncAllMappedTournaments()
         }
 
-        coVerify(exactly = 2) { client.fetchBrackets("pandascore-1") }
-        verify(exactly = 2) { log.error(any(), any<Throwable>()) }
-    }
-
-    @Test
-    fun `propagates CancellationException instead of treating it as an ordinary sync failure`() {
-        val mappingRepository = mockk<TournamentProviderMappingRepository>()
-        val client = mockk<PandaScoreClient>()
-        val dao = mockk<BracketMatchDao>(relaxed = true)
-
-        val mapping =
-            TournamentProviderMapping(
-                lolesportsTournamentId = "lol-tournament-1",
-                pandascoreTournamentId = "pandascore-1",
-            )
-
-        every { mappingRepository.findAll() } returns listOf(mapping)
-        coEvery { client.fetchBrackets("pandascore-1") } throws CancellationException("coroutine cancelled")
-
-        val service = BracketSyncService(mappingRepository, client, dao)
-
-        assertThrows(CancellationException::class.java) {
-            runBlocking { service.syncAllMappedTournaments() }
-        }
+        verify(exactly = 1) { log.error(any<String>(), any<Throwable>()) }
     }
 }

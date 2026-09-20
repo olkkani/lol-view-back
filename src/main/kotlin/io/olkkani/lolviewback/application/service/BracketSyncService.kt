@@ -1,8 +1,9 @@
 package io.olkkani.lolviewback.application.service
 
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.PandaScoreClient
-import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentProviderMappingRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class BracketSyncService(
-    private val tournamentProviderMappingRepository: TournamentProviderMappingRepository,
+    private val tournamentRepository: TournamentRepository,
+    private val externalIdLookupService: ExternalIdLookupService,
     private val pandaScoreClient: PandaScoreClient,
     private val bracketMatchDao: BracketMatchDao,
     private val nowProvider: () -> Instant = Instant::now,
@@ -28,21 +30,27 @@ class BracketSyncService(
     private val logSuppressionWindow = Duration.ofHours(1)
 
     suspend fun syncAllMappedTournaments() {
-        val mappings =
+        val tournamentIds =
             withContext(Dispatchers.IO) {
-                tournamentProviderMappingRepository.findAll()
+                tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+            }
+        val tournaments =
+            withContext(Dispatchers.IO) {
+                tournamentRepository.findAllById(tournamentIds)
             }
 
-        for (mapping in mappings) {
+        for (tournament in tournaments) {
+            val lolesportsId = externalIdLookupService.resolveTournament(tournament, Provider.LOLESPORTS)
+            val pandascoreId = externalIdLookupService.resolveTournament(tournament, Provider.PANDASCORE)
             try {
-                val matches = pandaScoreClient.fetchBrackets(mapping.pandascoreTournamentId)
+                val matches = pandaScoreClient.fetchBrackets(pandascoreId)
                 withContext(Dispatchers.IO) {
-                    bracketMatchDao.upsertMatches(mapping.lolesportsTournamentId, matches)
+                    bracketMatchDao.upsertMatches(lolesportsId, matches)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                logFailureRateLimited(mapping.lolesportsTournamentId, e)
+                logFailureRateLimited(lolesportsId, e)
             }
         }
     }
