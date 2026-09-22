@@ -4,6 +4,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketStageDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.BracketStage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -79,5 +80,35 @@ class BracketStageDaoTest {
         // ':' and ','), so the round-tripped text isn't byte-identical to the
         // input even though it's the same JSON value.
         assertEquals("""{"rounds": 5, "pairing": "danish", "tiebreak": "buchholz"}""", found[0].config)
+    }
+
+    @Test
+    fun `upsert rejects an unrecognized format value`() {
+        // BracketStageDao is a Spring @Repository, so PersistenceExceptionTranslationInterceptor
+        // wraps the IllegalArgumentException thrown by `require()` in an
+        // InvalidDataAccessApiUsageException. The cause is the original exception.
+        val exception =
+            assertThrows(RuntimeException::class.java) {
+                bracketStageDao.upsert(sampleStage(format = "SWISSS"))
+            }
+        val cause = exception.cause
+        assertEquals(IllegalArgumentException::class.java, cause?.javaClass)
+        assertEquals(
+            "Unrecognized bracket stage format: SWISSS " +
+                "(expected one of: ROUND_ROBIN, SWISS, SINGLE_ELIMINATION, DOUBLE_ELIMINATION)",
+            cause?.message,
+        )
+    }
+
+    @Test
+    fun `upsert accepts each of the four valid format values`() {
+        listOf("ROUND_ROBIN", "SWISS", "SINGLE_ELIMINATION", "DOUBLE_ELIMINATION")
+            .forEachIndexed { index, format ->
+                bracketStageDao.upsert(sampleStage(name = format, format = format, ordinal = index))
+            }
+
+        val found = bracketStageDao.findByTournamentId("115548147890329817")
+
+        assertEquals(4, found.size)
     }
 }

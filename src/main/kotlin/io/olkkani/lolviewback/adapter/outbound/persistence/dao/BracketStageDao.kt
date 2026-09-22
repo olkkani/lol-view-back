@@ -12,6 +12,10 @@ import org.springframework.stereotype.Repository
 class BracketStageDao(
     private val dsl: DSLContext,
 ) {
+    companion object {
+        private val VALID_FORMATS = setOf("ROUND_ROBIN", "SWISS", "SINGLE_ELIMINATION", "DOUBLE_ELIMINATION")
+    }
+
     private val bracketStages = Tables.BRACKET_STAGES
 
     /**
@@ -20,6 +24,11 @@ class BracketStageDao(
      * overwrites in place rather than duplicating.
      */
     fun upsert(stage: BracketStage): BracketStage {
+        require(stage.format in VALID_FORMATS) {
+            "Unrecognized bracket stage format: ${stage.format} " +
+                "(expected one of: ${VALID_FORMATS.joinToString(", ")})"
+        }
+
         dsl.insertInto(
             bracketStages,
             bracketStages.ID,
