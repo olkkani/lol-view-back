@@ -27,6 +27,7 @@ class BracketMatchDao(
     fun upsertMatches(
         tournamentId: String,
         matchesToSave: List<PandaScoreMatch>,
+        stageId: Long? = null,
     ): List<BracketMatch> {
         if (matchesToSave.isEmpty()) return emptyList()
 
@@ -47,6 +48,7 @@ class BracketMatchDao(
                 bracketMatches.PREVIOUS_MATCHES,
                 bracketMatches.OPPONENTS,
                 bracketMatches.RESULTS,
+                bracketMatches.STAGE_ID,
             ).values(
                 TSID.Factory.getTsid().toLong(),
                 tournamentId,
@@ -62,6 +64,7 @@ class BracketMatchDao(
                 JSONB.valueOf(match.previousMatches.toString()),
                 JSONB.valueOf(match.opponents.toString()),
                 JSONB.valueOf(match.results.toString()),
+                stageId,
             )
                 .onConflict(bracketMatches.TOURNAMENT_ID, bracketMatches.MATCH_ID)
                 .doUpdate()
@@ -74,6 +77,7 @@ class BracketMatchDao(
                 .set(bracketMatches.PREVIOUS_MATCHES, JSONB.valueOf(match.previousMatches.toString()))
                 .set(bracketMatches.OPPONENTS, JSONB.valueOf(match.opponents.toString()))
                 .set(bracketMatches.RESULTS, JSONB.valueOf(match.results.toString()))
+                .set(bracketMatches.STAGE_ID, stageId)
                 .execute()
         }
 
@@ -110,5 +114,6 @@ class BracketMatchDao(
             previousMatches = record.previousMatches!!.data(),
             opponents = record.opponents!!.data(),
             results = record.results!!.data(),
+            stageId = record.stageId,
         )
 }

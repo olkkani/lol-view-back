@@ -29,6 +29,7 @@ class BracketRestControllerTest {
                     previousMatches = """[{"type":"loser","match_id":1642153}]""",
                     opponents = "[]",
                     results = "[]",
+                    stageId = null,
                 ),
             )
 

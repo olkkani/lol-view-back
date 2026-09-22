@@ -24,4 +24,5 @@ class BracketMatch(
     var previousMatches: String,
     var opponents: String,
     var results: String,
+    var stageId: Long?,
 )

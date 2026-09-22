@@ -2,8 +2,11 @@ package io.olkkani.lolviewback.adapter.outbound.persistence
 
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatch
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketStageDao
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.BracketStage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -28,6 +31,9 @@ class BracketMatchDaoTest {
 
     @Autowired
     lateinit var bracketMatchDao: BracketMatchDao
+
+    @Autowired
+    lateinit var bracketStageDao: BracketStageDao
 
     private val objectMapper = JsonMapper.builder().build()
 
@@ -87,5 +93,37 @@ class BracketMatchDaoTest {
         assertEquals(1, resynced.size, "second sync must update the existing row, not add a duplicate")
         assertNotNull(resynced[0].beginAt, "begin_at must be populated once the match starts, not stuck at the first sync's null")
         assertEquals(LocalDateTime.of(2026, 9, 3, 8, 2, 42), resynced[0].beginAt)
+    }
+
+    @Test
+    fun `upsertMatches with a stageId links the match to that stage`() {
+        val stage =
+            bracketStageDao.upsert(
+                BracketStage(
+                    tournamentId = "115548147890329817",
+                    name = "Playoffs",
+                    format = "DOUBLE_ELIMINATION",
+                    ordinal = 1,
+                    config = null,
+                ),
+            )
+
+        val saved =
+            bracketMatchDao.upsertMatches(
+                "115548147890329817",
+                listOf(sampleMatch()),
+                stageId = stage.id,
+            )
+
+        assertEquals(1, saved.size)
+        assertEquals(stage.id, saved[0].stageId)
+    }
+
+    @Test
+    fun `upsertMatches without a stageId leaves it null, unchanged from existing behavior`() {
+        val saved = bracketMatchDao.upsertMatches("115548147890329817", listOf(sampleMatch()))
+
+        assertEquals(1, saved.size)
+        assertNull(saved[0].stageId)
     }
 }
