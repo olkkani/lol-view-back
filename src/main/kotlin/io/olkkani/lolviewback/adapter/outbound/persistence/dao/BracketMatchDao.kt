@@ -77,6 +77,10 @@ class BracketMatchDao(
                 .set(bracketMatches.PREVIOUS_MATCHES, JSONB.valueOf(match.previousMatches.toString()))
                 .set(bracketMatches.OPPONENTS, JSONB.valueOf(match.opponents.toString()))
                 .set(bracketMatches.RESULTS, JSONB.valueOf(match.results.toString()))
+                // Unconditional: a manual re-curation passing stageId = null must be able to
+                // clear a stage link. Consequence: BracketSyncService's 5-minute resync calls
+                // this without a stageId, so it nulls any curated stage_id on every tick.
+                // Wiring the sync path to look up and pass the real stageId is a known follow-up.
                 .set(bracketMatches.STAGE_ID, stageId)
                 .execute()
         }

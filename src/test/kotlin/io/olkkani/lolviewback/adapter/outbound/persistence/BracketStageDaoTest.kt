@@ -4,6 +4,8 @@ import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatc
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketStageDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.BracketStage
+import org.jooq.DSLContext
+import org.jooq.generated.Tables
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -34,7 +36,27 @@ class BracketStageDaoTest {
     @Autowired
     lateinit var bracketMatchDao: BracketMatchDao
 
+    @Autowired
+    lateinit var dsl: DSLContext
+
     private val objectMapper = JsonMapper.builder().build()
+
+    private fun sampleMatch() =
+        PandaScoreMatch(
+            id = 1642162L,
+            name = "Lower bracket round 1: BFX vs DK",
+            status = "not_started",
+            slug = "2026-09-03-572d56d4",
+            winnerId = null,
+            winnerType = null,
+            tournamentId = 21722L,
+            beginAt = null,
+            endAt = null,
+            scheduledAt = "2026-09-03T08:00:00Z",
+            previousMatches = objectMapper.readTree("""[{"type":"loser","match_id":1642153}]"""),
+            opponents = objectMapper.readTree("""[{"type":"Team","opponent":{"id":134115}}]"""),
+            results = objectMapper.readTree("[]"),
+        )
 
     private fun sampleStage(
         tournamentId: String = "115548147890329817",
@@ -185,5 +207,21 @@ class BracketStageDaoTest {
 
         val loadedStage = bracketStageDao.findByTournamentId("115548147890329817").single()
         assertEquals("DOUBLE_ELIMINATION", loadedStage.format)
+    }
+
+    @Test
+    fun `deleting a stage detaches its matches instead of blocking the delete or cascading`() {
+        val stage = bracketStageDao.upsert(sampleStage())
+        bracketMatchDao.upsertMatches(
+            "115548147890329817",
+            listOf(sampleMatch()),
+            stageId = stage.id,
+        )
+
+        dsl.deleteFrom(Tables.BRACKET_STAGES).where(Tables.BRACKET_STAGES.ID.eq(stage.id)).execute()
+
+        val matches = bracketMatchDao.findByTournamentId("115548147890329817")
+        assertEquals(1, matches.size, "the match row itself must survive the stage delete")
+        assertNull(matches[0].stageId, "the match's stage_id must be detached (SET NULL), not left dangling")
     }
 }

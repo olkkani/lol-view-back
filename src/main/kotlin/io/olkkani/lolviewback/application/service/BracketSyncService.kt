@@ -54,6 +54,7 @@ class BracketSyncService(
             try {
                 val matches = pandaScoreClient.fetchBrackets(pandascoreId)
                 withContext(Dispatchers.IO) {
+                    // TODO: look up and pass stageId — upsertMatches currently nulls curated stage links
                     bracketMatchDao.upsertMatches(lolesportsId, matches)
                 }
             } catch (e: CancellationException) {
