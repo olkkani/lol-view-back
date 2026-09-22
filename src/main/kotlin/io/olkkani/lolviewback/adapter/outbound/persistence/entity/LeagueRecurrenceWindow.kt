@@ -14,7 +14,7 @@ class LeagueRecurrenceWindow(
     @Id
     var id: Long = TSID.Factory.getTsid().toLong(),
     var label: String,
-    var sequenceOrder: Int,
+    var tieBreakPriority: Int,
     var intervalYear: Int,
     var startDate: LocalDate,
 

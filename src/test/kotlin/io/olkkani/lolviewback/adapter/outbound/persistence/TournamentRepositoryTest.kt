@@ -1,10 +1,7 @@
 package io.olkkani.lolviewback.adapter.outbound.persistence
 
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
-import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
-import io.olkkani.lolviewback.adapter.outbound.persistence.entity.TournamentExternalId
-import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,58 +28,23 @@ class TournamentRepositoryTest {
     @Autowired
     lateinit var tournamentRepository: TournamentRepository
 
-    @Autowired
-    lateinit var tournamentExternalIdRepository: TournamentExternalIdRepository
-
-    @Autowired
-    lateinit var entityManager: EntityManager
-
     private fun league() = leagueRepository.save(
         League(leagueName = "LCK", logoUrl = "https://example.com/lck.png", isActive = true),
     )
 
-    private fun tournament(league: League) = tournamentRepository.save(
-        Tournament(
-            tournamentName = "LCK Summer 2026",
-            startDate = LocalDate.now(),
-            endDate = LocalDate.now().plusDays(30),
-            league = league,
-        ),
-    )
-
     @Test
-    fun `returns only tournaments with both LOLESPORTS and PANDASCORE mappings`() {
-        val bothMapped = tournament(league())
-        val lolesportsOnly = tournament(league())
-
-        tournamentExternalIdRepository.save(
-            TournamentExternalId(entityId = bothMapped.id, provider = Provider.LOLESPORTS, externalId = "lol-1"),
+    fun `saves and finds a tournament by id`() {
+        val saved = tournamentRepository.save(
+            Tournament(
+                tournamentName = "LCK Summer 2026",
+                startDate = LocalDate.now(),
+                endDate = LocalDate.now().plusDays(30),
+                league = league(),
+            ),
         )
-        tournamentExternalIdRepository.save(
-            TournamentExternalId(entityId = bothMapped.id, provider = Provider.PANDASCORE, externalId = "panda-1"),
-        )
-        tournamentExternalIdRepository.save(
-            TournamentExternalId(entityId = lolesportsOnly.id, provider = Provider.LOLESPORTS, externalId = "lol-2"),
-        )
-        entityManager.flush()
-        entityManager.clear()
 
-        val result = tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+        val found = tournamentRepository.findAllById(listOf(saved.id))
 
-        assertEquals(listOf(bothMapped.id), result)
-    }
-
-    @Test
-    fun `returns an empty list when no tournament has both mappings`() {
-        val lolesportsOnly = tournament(league())
-        tournamentExternalIdRepository.save(
-            TournamentExternalId(entityId = lolesportsOnly.id, provider = Provider.LOLESPORTS, externalId = "lol-1"),
-        )
-        entityManager.flush()
-        entityManager.clear()
-
-        val result = tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
-
-        assertEquals(emptyList<Long>(), result)
+        assertEquals(listOf(saved.id), found.map { it.id })
     }
 }

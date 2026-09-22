@@ -37,11 +37,11 @@ object TournamentDueChecker {
         // 15, tournament day 10) would otherwise snap a full year further back instead of a few
         // days forward, producing a huge false distance and picking the wrong window.
         //
-        // Ties are broken by sequenceOrder for determinism (lower sequenceOrder wins), since
+        // Ties are broken by tieBreakPriority for determinism (lower value wins), since
         // otherwise input-list order would silently decide the outcome.
         return windows
             .map { window -> window to circularMonthDistance(window.startDate, tournamentStartDate) }
-            .sortedWith(compareBy({ (_, distance) -> distance }, { (window, _) -> window.sequenceOrder }))
+            .sortedWith(compareBy({ (_, distance) -> distance }, { (window, _) -> window.tieBreakPriority }))
             .firstOrNull()
             ?.first
     }

@@ -23,7 +23,7 @@ class TournamentDueCheckerTest {
         val league = league()
         val window = LeagueRecurrenceWindow(
             label = "MSI",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 5, 1),
             league = league,
@@ -45,7 +45,7 @@ class TournamentDueCheckerTest {
         val league = league()
         val window = LeagueRecurrenceWindow(
             label = "MSI",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 5, 1),
             league = league,
@@ -68,7 +68,7 @@ class TournamentDueCheckerTest {
         val league = league()
         val window = LeagueRecurrenceWindow(
             label = "MSI",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 5, 1),
             league = league,
@@ -95,14 +95,14 @@ class TournamentDueCheckerTest {
         val league = league()
         val springWindow = LeagueRecurrenceWindow(
             label = "Spring",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 1),
             league = league,
         )
         val summerWindow = LeagueRecurrenceWindow(
             label = "Summer",
-            sequenceOrder = 2,
+            tieBreakPriority = 2,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 6, 1),
             league = league,
@@ -131,7 +131,7 @@ class TournamentDueCheckerTest {
         val league = league()
         val window = LeagueRecurrenceWindow(
             label = "MSI",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 4,
             startDate = LocalDate.of(2022, 1, 1),
             league = league,
@@ -153,14 +153,14 @@ class TournamentDueCheckerTest {
         val league = league()
         val springWindow = LeagueRecurrenceWindow(
             label = "Spring",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 1),
             league = league,
         )
         val summerWindow = LeagueRecurrenceWindow(
             label = "Summer",
-            sequenceOrder = 2,
+            tieBreakPriority = 2,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 6, 1),
             league = league,
@@ -189,14 +189,14 @@ class TournamentDueCheckerTest {
         val league = league()
         val springWindow = LeagueRecurrenceWindow(
             label = "Spring",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 1),
             league = league,
         )
         val summerWindow = LeagueRecurrenceWindow(
             label = "Summer",
-            sequenceOrder = 2,
+            tieBreakPriority = 2,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 6, 1),
             league = league,
@@ -224,14 +224,14 @@ class TournamentDueCheckerTest {
         // 2025-01-15's neighboring occurrence -- i.e. essentially the same season.
         val springWindow = LeagueRecurrenceWindow(
             label = "Spring",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 15),
             league = league,
         )
         val summerWindow = LeagueRecurrenceWindow(
             label = "Summer",
-            sequenceOrder = 2,
+            tieBreakPriority = 2,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 6, 1),
             league = league,
@@ -246,20 +246,20 @@ class TournamentDueCheckerTest {
     }
 
     @Test
-    fun `findMatchingWindow breaks ties deterministically using sequenceOrder`() {
+    fun `findMatchingWindow breaks ties deterministically using tieBreakPriority`() {
         val league = league()
         // Two windows placed symmetrically around the tournament's date, so both are equidistant
-        // in circular month-distance. The lower sequenceOrder should win regardless of list order.
+        // in circular month-distance. The lower tieBreakPriority should win regardless of list order.
         val firstWindow = LeagueRecurrenceWindow(
             label = "A",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 1),
             league = league,
         )
         val secondWindow = LeagueRecurrenceWindow(
             label = "B",
-            sequenceOrder = 2,
+            tieBreakPriority = 2,
             intervalYear = 1,
             startDate = LocalDate.of(2024, 1, 31),
             league = league,
@@ -295,7 +295,7 @@ class TournamentDueCheckerTest {
         // forever, even after the anchor (2025) itself has gone stale and a new cycle is due.
         val window = LeagueRecurrenceWindow(
             label = "MSI",
-            sequenceOrder = 1,
+            tieBreakPriority = 1,
             intervalYear = 1,
             startDate = LocalDate.of(2025, 5, 1),
             league = league,

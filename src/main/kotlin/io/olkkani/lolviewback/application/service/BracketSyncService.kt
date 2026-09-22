@@ -3,6 +3,7 @@ package io.olkkani.lolviewback.application.service
 import io.olkkani.lolviewback.adapter.outbound.client.bracket.PandaScoreClient
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class BracketSyncService(
     private val tournamentRepository: TournamentRepository,
+    private val tournamentDao: TournamentDao,
     private val externalIdLookupService: ExternalIdLookupService,
     private val pandaScoreClient: PandaScoreClient,
     private val bracketMatchDao: BracketMatchDao,
@@ -32,7 +34,7 @@ class BracketSyncService(
     suspend fun syncAllMappedTournaments() {
         val tournamentIds =
             withContext(Dispatchers.IO) {
-                tournamentRepository.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
+                tournamentDao.findTournamentIdsWithBothProviders(Provider.LOLESPORTS, Provider.PANDASCORE)
             }
         val tournaments =
             withContext(Dispatchers.IO) {
