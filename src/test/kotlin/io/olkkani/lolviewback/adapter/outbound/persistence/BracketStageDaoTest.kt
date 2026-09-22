@@ -1,5 +1,7 @@
 package io.olkkani.lolviewback.adapter.outbound.persistence
 
+import io.olkkani.lolviewback.adapter.outbound.client.bracket.dto.PandaScoreMatch
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketMatchDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.BracketStageDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.BracketStage
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import tools.jackson.databind.json.JsonMapper
 
 @Testcontainers
 @SpringBootTest
@@ -27,6 +30,11 @@ class BracketStageDaoTest {
 
     @Autowired
     lateinit var bracketStageDao: BracketStageDao
+
+    @Autowired
+    lateinit var bracketMatchDao: BracketMatchDao
+
+    private val objectMapper = JsonMapper.builder().build()
 
     private fun sampleStage(
         tournamentId: String = "115548147890329817",
@@ -110,5 +118,72 @@ class BracketStageDaoTest {
         val found = bracketStageDao.findByTournamentId("115548147890329817")
 
         assertEquals(4, found.size)
+    }
+
+    @Test
+    fun `real LCK 2026 Playoffs double-elimination matches join to their curated stage`() {
+        val stage =
+            bracketStageDao.upsert(
+                BracketStage(
+                    tournamentId = "115548147890329817",
+                    name = "Playoffs",
+                    format = "DOUBLE_ELIMINATION",
+                    ordinal = 1,
+                    config = null,
+                ),
+            )
+
+        val grandFinal =
+            PandaScoreMatch(
+                id = 1642158L,
+                name = "Grand final: GEN vs HLE",
+                status = "finished",
+                slug = "gen-g-2026-09-13",
+                winnerId = 2882L,
+                winnerType = "Team",
+                tournamentId = 21722L,
+                beginAt = "2026-09-13T05:22:41Z",
+                endAt = "2026-09-13T08:48:04Z",
+                scheduledAt = "2026-09-13T05:00:00Z",
+                previousMatches =
+                    objectMapper.readTree(
+                        """[{"type":"winner","match_id":1642157},{"type":"winner","match_id":1642159}]""",
+                    ),
+                opponents = objectMapper.readTree("""[{"type":"Team","opponent":{"id":2882}},{"type":"Team","opponent":{"id":2883}}]"""),
+                results = objectMapper.readTree("""[{"team_id":2883,"score":1},{"team_id":2882,"score":3}]"""),
+            )
+        val lowerBracketRound1 =
+            PandaScoreMatch(
+                id = 1642162L,
+                name = "Lower bracket round 1: BFX vs DK",
+                status = "finished",
+                slug = "2026-09-03-572d56d4-cdb7-4e13-bebb-583b92cb5e62",
+                winnerId = 132531L,
+                winnerType = "Team",
+                tournamentId = 21722L,
+                beginAt = "2026-09-03T08:02:42Z",
+                endAt = "2026-09-03T12:24:59Z",
+                scheduledAt = "2026-09-03T08:00:00Z",
+                previousMatches =
+                    objectMapper.readTree(
+                        """[{"type":"loser","match_id":1642153},{"type":"loser","match_id":1642154}]""",
+                    ),
+                opponents = objectMapper.readTree("""[{"type":"Team","opponent":{"id":134115}},{"type":"Team","opponent":{"id":132531}}]"""),
+                results = objectMapper.readTree("""[{"team_id":132531,"score":3},{"team_id":134115,"score":2}]"""),
+            )
+
+        bracketMatchDao.upsertMatches(
+            "115548147890329817",
+            listOf(grandFinal, lowerBracketRound1),
+            stageId = stage.id,
+        )
+
+        val matches = bracketMatchDao.findByTournamentId("115548147890329817")
+
+        assertEquals(2, matches.size)
+        assertEquals(setOf(stage.id), matches.map { it.stageId }.toSet())
+
+        val loadedStage = bracketStageDao.findByTournamentId("115548147890329817").single()
+        assertEquals("DOUBLE_ELIMINATION", loadedStage.format)
     }
 }
