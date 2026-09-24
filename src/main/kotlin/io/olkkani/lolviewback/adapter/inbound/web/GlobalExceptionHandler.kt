@@ -2,6 +2,7 @@ package io.olkkani.lolviewback.adapter.inbound.web
 
 import io.olkkani.lolviewback.adapter.inbound.web.dto.InvalidHeadToHeadRequestException
 import io.olkkani.lolviewback.adapter.inbound.web.dto.InvalidMatchRangeException
+import io.olkkani.lolviewback.adapter.inbound.web.dto.LeagueNotFoundException
 import io.olkkani.lolviewback.adapter.inbound.web.dto.MatchNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -22,7 +23,7 @@ class GlobalExceptionHandler {
     fun handleBadRequest(ex: IllegalArgumentException): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.message ?: "Invalid request")
 
-    @ExceptionHandler(MatchNotFoundException::class)
-    fun handleNotFound(ex: MatchNotFoundException): ProblemDetail =
+    @ExceptionHandler(MatchNotFoundException::class, LeagueNotFoundException::class)
+    fun handleNotFound(ex: NoSuchElementException): ProblemDetail =
         ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.message ?: "Not found")
 }

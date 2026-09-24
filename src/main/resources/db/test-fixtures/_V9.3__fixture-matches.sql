@@ -1,7 +1,4 @@
-INSERT INTO "tournaments" ("id", "tournament_name", "start_date", "end_date", "league_id")
-VALUES
-    (9000, 'LCK Split 3 2026', '2026-07-28', '2026-09-20', 1004),
-    (9001, 'T1 vs GenG Head-to-Head', '2026-01-01', '2026-12-31', 1004);
+
 
 INSERT INTO "matches" ("id", "start_time", "match_type", "match_state", "match_label", "match_api_id", "tournament_id")
 VALUES

@@ -77,7 +77,7 @@ A Step 0 complexity check (8+ files, 4+ new classes) triggered a scope split, th
 1. **Unit 1 (atomic, must land together):** new tables (`league_external_ids`, `tournament_external_ids`, `club_external_ids`, shared `@MappedSuperclass` base — see Approach A), the backfill-then-drop Flyway migration, `ExternalIdLookupService` (`resolve()` + batch `resolveAll()`), and **every** call site that reads the dropped columns or the retired table: `TournamentSyncScheduler`, `PollMatchDataService`, `LeagueRepository`/`TournamentRepository`'s derived-query methods, `TournamentPollingDao`'s jOOQ-based `toEntity()` mappers, `TournamentMapper`, `BracketSyncService`, and `db/seed/V9.2__seed-matchs.sql`.
 2. **Unit 2 (separable):** `LolApiClientPort`'s method signature generalization (`leagueApiId: String` → provider-aware id type) plus `LolEsportsApiClient`'s implementation update. This is a pure interface change with no schema dependency — it can land before or after Unit 1.
 
-**jOOQ is a second ORM path the original doc missed entirely.** `TournamentPollingDao.kt` reads `leagueApiId`/`tournamentApiId` via jOOQ-generated `LeaguesRecord`/`TournamentsRecord` (codegen driven by the live DB schema, `monosoul` Gradle plugin) — separate from the JPA `League`/`Tournament` entities. Dropping the columns regenerates those jOOQ records without the fields; `TournamentPollingDao`'s mappers must be updated in the same unit or the build breaks. `V9.2__seed-matchs.sql` inserts directly into `tournaments(tournament_api_id, ...)` and breaks the same way — this matches the already-logged `seed-data-hardcodes-user-ids-pre-auth` pitfall pattern for this repo (seed data silently drifts from schema changes unless updated in the same step).
+**jOOQ is a second ORM path the original doc missed entirely.** `TournamentPollingDao.kt` reads `leagueApiId`/`tournamentApiId` via jOOQ-generated `LeaguesRecord`/`TournamentsRecord` (codegen driven by the live DB schema, `monosoul` Gradle plugin) — separate from the JPA `League`/`Tournament` entities. Dropping the columns regenerates those jOOQ records without the fields; `TournamentPollingDao`'s mappers must be updated in the same unit or the build breaks. `_V9.3__seed-matchs.sql` inserts directly into `tournaments(tournament_api_id, ...)` and breaks the same way — this matches the already-logged `seed-data-hardcodes-user-ids-pre-auth` pitfall pattern for this repo (seed data silently drifts from schema changes unless updated in the same step).
 
 **`ExternalIdLookupService` shape, finalized:**
 - `resolve(entity, provider): String` — throws `MissingExternalIdException(entity, provider)` when no mapping row exists, rather than returning null. Callers (sync loops) catch this per-entity inside their existing try/catch (`TournamentSyncScheduler` already isolates failures per-league at lines 67-68) and skip+log, rather than crashing the whole scheduler run. `League.leagueApiId`/`Tournament.tournamentApiId` were non-null `String` before this migration — a silent nullable return would be a new, easy-to-miss failure mode.
@@ -202,7 +202,7 @@ UNIT 1 — Atomic code + Migration A (must land together)
   leagueApiId/tournamentApiId fields on regenerated records)
         │
         ▼
-  db/seed/V9.2__seed-matchs.sql (rewritten to insert into
+  db/seed/_V9.3__seed-matchs.sql (rewritten to insert into
   new tables instead of dropped columns)
 
 UNIT 2 — Separable (no schema dependency)
@@ -284,9 +284,9 @@ finding above. Run with Claude Code or Codex; checkbox as you ship.
   - Surfaced by: Architecture 1A
   - Files: `TournamentPollingDao.kt`
   - Verify: jOOQ codegen regenerates clean against the migrated schema; `TournamentPollingDaoTest` passes
-- [ ] **T5 (P1, human: ~30min / CC: ~5min)** — seed — Rewrite `V9.2__seed-matchs.sql` to insert into new external-id tables instead of dropped columns
+- [ ] **T5 (P1, human: ~30min / CC: ~5min)** — seed — Rewrite `_V9.3__seed-matchs.sql` to insert into new external-id tables instead of dropped columns
   - Surfaced by: Architecture 1A
-  - Files: `V9.2__seed-matchs.sql`
+  - Files: `_V9.3__seed-matchs.sql`
   - Verify: seed runs clean on a fresh Testcontainers Postgres
 - [ ] **T6 (P1, human: ~2h / CC: ~15min)** — tests — Write repository round-trip tests (3x `@DataJpaTest`), `ExternalIdLookupService` unit tests, and backfill row-count assertions
   - Surfaced by: Test Review, 11 gaps

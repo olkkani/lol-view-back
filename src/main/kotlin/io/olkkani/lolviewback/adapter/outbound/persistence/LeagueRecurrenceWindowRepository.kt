@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface LeagueRecurrenceWindowRepository : JpaRepository<LeagueRecurrenceWindow, Long> {
     fun findByLeague(league: League): List<LeagueRecurrenceWindow>
+
+    fun findByLeagueIn(leagues: List<League>): List<LeagueRecurrenceWindow>
 }

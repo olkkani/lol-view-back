@@ -213,7 +213,7 @@ class PollMatchDataServiceFlushRiskIntegrationTest {
                 strategy = MatchScheduleEventStrategy(type = "bestOf", count = 3),
             ),
         )
-        // The persistence-local profile loads db/seed fixtures (V9.2__seed-matchs.sql),
+        // The persistence-local profile loads db/test-fixtures (_V9.3__fixture-matches.sql),
         // which can seed its own in-progress tournaments/leagues. Stub every league id
         // with an empty result by default so findInProgressTournaments() picking up a
         // seeded tournament besides this test's own doesn't blow up on an unstubbed call,
