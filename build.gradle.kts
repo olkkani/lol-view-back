@@ -1,3 +1,4 @@
+import dev.detekt.gradle.Detekt
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -8,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.jpa)
     alias(libs.plugins.jooq.monosoul)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 group = "io.olkkani"
@@ -19,7 +21,11 @@ java {
         languageVersion = JavaLanguageVersion.of(25)
     }
 }
-
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+    }
+}
 repositories {
     mavenCentral()
 }
@@ -50,11 +56,7 @@ dependencies {
     jooqCodegen(libs.postgresql)
 }
 
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
-    }
-}
+
 
 allOpen {
     annotation("jakarta.persistence.Entity")
@@ -62,9 +64,12 @@ allOpen {
     annotation("jakarta.persistence.Embeddable")
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+
+
+configurations.all {
+    exclude(group = "org.slf4j", module = "slf4j-simple")
 }
+
 
 val jooqGeneratedOutput = project.layout.buildDirectory.dir("generated-jooq") // 경로 변수화
 sourceSets {
@@ -72,12 +77,15 @@ sourceSets {
         kotlin.srcDirs(jooqGeneratedOutput)
     }
 }
-tasks.named("clean") {
-    doLast {
-        jooqGeneratedOutput.get().asFile.deleteRecursively()
-    }
+detekt {
+    buildUponDefaultConfig = true // preconfigure defaults
+    allRules = false // do not activate every rule by default
+    config.setFrom("$projectDir/config/detekt.yml") // point to your custom config defining rules to run, overwriting default behavior
 }
 tasks {
+    withType<Test> {
+        useJUnitPlatform()
+    }
     generateJooqClasses {
         schemas.set(listOf("public"))
         basePackageName.set("org.jooq.generated")
@@ -92,8 +100,17 @@ tasks {
             // "this" here is the org.jooq.meta.jaxb.Generator configure it as you please
         }
     }
-}
-
-configurations.all {
-    exclude(group = "org.slf4j", module = "slf4j-simple")
+    named("clean") {
+        doLast {
+            delete(jooqGeneratedOutput)
+        }
+    }
+    withType<Detekt>().configureEach {
+        reports {
+            checkstyle.required.set(true)
+            html.required.set(true)
+            sarif.required.set(true)
+            markdown.required.set(true)
+        }
+    }
 }

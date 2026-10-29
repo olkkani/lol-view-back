@@ -1,17 +1,27 @@
-## Communication Style
-- Be brief and concise in all responses
-- Avoid unnecessary explanations
-
 ## Git Workflow
+
 - This repo uses a bare repo + git worktree layout (`.bare`, with `main`/`develop`/feature worktrees as siblings).
 - `feature/*` branches are always branched from `develop`, not `main`.
+- The workspace root has no `.git`; run git commands from inside a worktree, targeting `../.bare`.
 - When a skill (e.g. `finishing-a-development-branch`) asks whether to merge into `main`, merge into `develop` instead unless the user explicitly says `main`.
+
+## Creating a worktree (overrides superpowers:using-git-worktrees defaults)
+
+- For new feature work, ALWAYS create a new worktree, even if the current directory is already a linked worktree (skip the skill's Step 0 "already isolated" rule).
+- Do NOT use `EnterWorktree` or a `.worktrees/` directory. Do not modify `.gitignore` for worktrees.
+- Steps:
+  1. Update local develop: `git -C ../develop pull --ff-only origin develop`
+  2. Create: `git -C ../.bare worktree add -b <type>/<name> ../<type>-<name> develop`
+     - Directory name = branch name with `/` replaced by `-` (`feature/deploy` → `feature-deploy`).
+  3. `cd ../<type>-<name>`; if `../.env` exists, run `direnv allow .`.
+  4. Verify baseline with `./gradlew test`; report failures and ask before proceeding.
 
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
 
 Key routing rules:
+
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
 - Architecture → invoke /plan-eng-review

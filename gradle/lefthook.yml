@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: false # 병렬 실행 여부
+  commands:
+    ktlint:
+      glob: "*.{kt,kts}"
+      run: ./gradlew ktlintCheck
+    detekt:
+      glob: "*.{kt,kts}"
+      run: ./gradlew detekt

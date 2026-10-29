@@ -4,7 +4,7 @@
 kotlin = "2.3.21"
 ksp = "2.3.10" # https://kotlinlang.org/docs/ksp-quickstart.html
 ktlint = "14.2.0"
-detekt = "1.23.8"
+detekt = "2.0.0-alpha.3"
 spring = "7.0.8"  # sync spring-boot version, check spring-security test
 spring-boot = "4.1.0" # sync spring version
 spring-boot-undertow = "4.0.0-M1" # sync spring-boot version later
@@ -12,6 +12,7 @@ spring-security-test = "7.1.0" #sync spring version later
 dependency-management = "1.1.7"
 osDetector = "1.7.3"
 coroutines = "1.8.1"
+
 # Library versions
 tsid = "2.1.4"
 hypersistence-utils = "3.15.4" # for tsid https://github.com/vladmihalcea/hypersistence-utils
@@ -129,5 +130,6 @@ dependency-management = { id = "io.spring.dependency-management", version.ref = 
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 #jooq = { id = "nu.studer.jooq", version = "10.1" }
 jooq-monosoul = { id = "dev.monosoul.jooq-docker", version.ref = "jooq-docker" }
-#
+# code-check
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+detekt = { id ="dev.detekt", version.ref = "detekt" }
