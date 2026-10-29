@@ -343,4 +343,47 @@ class MatchPollingDaoTest {
             .createQuery("SELECT COUNT(p) FROM MatchParticipant p WHERE p.match.id = :matchId", Long::class.java)
             .setParameter("matchId", matchId)
             .singleResult
+
+    @Test
+    fun `findMatchesToPoll returns only started matches that are not completed`() {
+        val tournament = tournament()
+        val now = ZonedDateTime.now()
+        fun polled(apiId: String, startOffsetHours: Long, state: MatchState) =
+            match(tournament, apiId).apply {
+                startTime = now.plusHours(startOffsetHours)
+                matchState = state
+            }
+        matchPollingDao.upsertMatches(
+            listOf(
+                polled("started-unstarted", -1, MatchState.UNSTARTED),
+                polled("started-in-progress", -1, MatchState.IN_PROGRESS),
+                polled("started-completed", -1, MatchState.COMPLETED),
+                polled("future-unstarted", 1, MatchState.UNSTARTED),
+            ),
+        )
+
+        val result = matchPollingDao.findMatchesToPoll(now)
+
+        assertEquals(setOf("started-unstarted", "started-in-progress"), result.map { it.matchApiId }.toSet())
+        assertTrue(result.all { it.league.id == tournament.league.id })
+    }
+
+    @Test
+    fun `updateMatchStates updates only the given matches`() {
+        val tournament = tournament()
+        matchPollingDao.upsertMatches(
+            listOf(match(tournament, "to-progress"), match(tournament, "to-complete"), match(tournament, "untouched")),
+        )
+
+        matchPollingDao.updateMatchStates(
+            mapOf("to-progress" to MatchState.IN_PROGRESS, "to-complete" to MatchState.COMPLETED),
+        )
+
+        val stateByApiId = matchPollingDao
+            .upsertMatches(listOf(match(tournament, "to-progress"), match(tournament, "to-complete"), match(tournament, "untouched")))
+            .associate { it.matchApiId to it.matchState }
+        assertEquals(MatchState.IN_PROGRESS, stateByApiId["to-progress"])
+        assertEquals(MatchState.COMPLETED, stateByApiId["to-complete"])
+        assertEquals(MatchState.UNSTARTED, stateByApiId["untouched"])
+    }
 }

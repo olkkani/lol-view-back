@@ -13,6 +13,7 @@ import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEven
 import io.olkkani.lolviewback.adapter.outbound.client.sync.dto.MatchScheduleEventTeam
 import io.olkkani.lolviewback.adapter.outbound.persistence.TournamentRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.ClubProfileRepository
+import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollTarget
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Club
@@ -20,6 +21,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchType
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
@@ -404,5 +406,57 @@ class PollMatchDataServiceTest {
         service.syncUpcomingMatches()
 
         verify(exactly = 0) { matchPollingDao.deleteStaleTbdParticipants(any(), any()) }
+    }
+
+    @Test
+    fun `syncMatchStates updates only matches whose api state differs from the saved state`() = runBlocking {
+        val league = league()
+        val targets = listOf(
+            MatchPollTarget("m-started", MatchState.UNSTARTED, league),
+            MatchPollTarget("m-finished", MatchState.IN_PROGRESS, league),
+            MatchPollTarget("m-same", MatchState.IN_PROGRESS, league),
+        )
+
+        every { matchPollingDao.findMatchesToPoll(any()) } returns targets
+        every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns listOf(
+            scheduleEvent("m-started", state = "inProgress"),
+            scheduleEvent("m-finished", state = "completed"),
+            scheduleEvent("m-same", state = "inProgress"),
+            scheduleEvent("m-unknown", state = "completed"),
+        )
+        every { matchPollingDao.updateMatchStates(any()) } returns Unit
+
+        service.syncMatchStates()
+
+        verify(exactly = 1) {
+            matchPollingDao.updateMatchStates(
+                mapOf("m-started" to MatchState.IN_PROGRESS, "m-finished" to MatchState.COMPLETED),
+            )
+        }
+    }
+
+    @Test
+    fun `syncMatchStates does not call the api when there is nothing to poll`() = runBlocking {
+        every { matchPollingDao.findMatchesToPoll(any()) } returns emptyList()
+
+        service.syncMatchStates()
+
+        coVerify(exactly = 0) { apiClientPort.fetchMatches(any()) }
+        verify(exactly = 0) { matchPollingDao.updateMatchStates(any()) }
+    }
+
+    @Test
+    fun `syncMatchStates does not write when no state changed`() = runBlocking {
+        val league = league()
+        every { matchPollingDao.findMatchesToPoll(any()) } returns
+            listOf(MatchPollTarget("m-same", MatchState.UNSTARTED, league))
+        every { externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS) } returns "lck-api-id"
+        coEvery { apiClientPort.fetchMatches(ProviderExternalId(Provider.LOLESPORTS, "lck-api-id")) } returns
+            listOf(scheduleEvent("m-same", state = "unstarted"))
+
+        service.syncMatchStates()
+
+        verify(exactly = 0) { matchPollingDao.updateMatchStates(any()) }
     }
 }

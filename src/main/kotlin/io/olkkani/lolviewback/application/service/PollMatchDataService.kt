@@ -10,6 +10,7 @@ import io.olkkani.lolviewback.adapter.outbound.persistence.dao.MatchPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.dao.TournamentPollingDao
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.ClubProfile
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Tournament
 import io.olkkani.lolviewback.application.outbound.LolApiClientPort
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import java.time.ZonedDateTime
 
 @Service
 class PollMatchDataService(
@@ -33,6 +35,33 @@ class PollMatchDataService(
     suspend fun syncUpcomingMatches() {
         for (inProgressTournament in tournamentPollingDao.findInProgressTournaments()) {
             syncTournament(inProgressTournament)
+        }
+    }
+
+    suspend fun syncMatchStates() {
+        val targets = withContext(Dispatchers.IO) { matchPollingDao.findMatchesToPoll(ZonedDateTime.now()) }
+
+        for (leagueTargets in targets.groupBy { it.league.id }.values) {
+            val league = leagueTargets.first().league
+            val lolesportsLeagueId = try {
+                externalIdLookupService.resolveLeague(league, Provider.LOLESPORTS)
+            } catch (e: MissingExternalIdException) {
+                log.warn("Skipping match state sync for league {} — {}", league.id, e.message)
+                continue
+            }
+
+            val savedStateByApiId = leagueTargets.associate { it.matchApiId to it.matchState }
+            val changedStates =
+                apiClientPort
+                    .fetchMatches(ProviderExternalId(Provider.LOLESPORTS, lolesportsLeagueId))
+                    .mapNotNull { event ->
+                        val savedState = savedStateByApiId[event.match.id] ?: return@mapNotNull null
+                        val apiState = MatchState.fromState(event.state)
+                        (event.match.id to apiState).takeIf { apiState != savedState }
+                    }.toMap()
+            if (changedStates.isEmpty()) continue
+
+            withContext(Dispatchers.IO) { matchPollingDao.updateMatchStates(changedStates) }
         }
     }
 

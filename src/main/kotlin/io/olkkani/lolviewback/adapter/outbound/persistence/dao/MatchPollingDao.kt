@@ -1,5 +1,7 @@
 package io.olkkani.lolviewback.adapter.outbound.persistence.dao
 
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
+import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LogoBackdrop
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Match
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchParticipant
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.MatchState
@@ -9,6 +11,7 @@ import org.jooq.DSLContext
 import org.jooq.generated.Tables
 import org.springframework.stereotype.Repository
 import java.time.ZoneId
+import java.time.ZonedDateTime
 
 @Repository
 class MatchPollingDao(
@@ -16,6 +19,8 @@ class MatchPollingDao(
 ) {
     private val matches = Tables.MATCHES
     private val matchParticipants = Tables.MATCH_PARTICIPANTS
+    private val tournaments = Tables.TOURNAMENTS
+    private val leagues = Tables.LEAGUES
 
     /**
      * Inserts each match, skipping any whose match_api_id already exists
@@ -118,4 +123,47 @@ class MatchPollingDao(
             )
             .execute()
     }
+
+    /**
+     * Matches whose start_time has passed but are not yet COMPLETED — the ones whose
+     * match_state may have moved on at the API since they were last saved.
+     */
+    fun findMatchesToPoll(now: ZonedDateTime): List<MatchPollTarget> =
+        dsl.select(matches.MATCH_API_ID, matches.MATCH_STATE, leagues)
+            .from(matches)
+            .join(tournaments).on(matches.TOURNAMENT_ID.eq(tournaments.ID))
+            .join(leagues).on(tournaments.LEAGUE_ID.eq(leagues.ID))
+            .where(matches.START_TIME.le(now.withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime()))
+            .and(matches.MATCH_STATE.ne(MatchState.COMPLETED.name))
+            .fetch { record ->
+                val league = record.value3()
+                MatchPollTarget(
+                    matchApiId = record.value1()!!,
+                    matchState = MatchState.valueOf(record.value2()!!),
+                    league = League(
+                        id = league.id,
+                        leagueName = league.leagueName,
+                        logoUrl = league.logoUrl,
+                        isActive = league.isActive,
+                        logoBackdrop = league.logoBackdrop?.let { LogoBackdrop.valueOf(it) },
+                    ),
+                )
+            }
+
+    fun updateMatchStates(stateByMatchApiId: Map<String, MatchState>) {
+        stateByMatchApiId.entries
+            .groupBy({ it.value }, { it.key })
+            .forEach { (state, matchApiIds) ->
+                dsl.update(matches)
+                    .set(matches.MATCH_STATE, state.name)
+                    .where(matches.MATCH_API_ID.`in`(matchApiIds))
+                    .execute()
+            }
+    }
 }
+
+data class MatchPollTarget(
+    val matchApiId: String,
+    val matchState: MatchState,
+    val league: League,
+)
