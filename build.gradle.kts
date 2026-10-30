@@ -80,7 +80,6 @@ sourceSets {
 detekt {
     buildUponDefaultConfig = true // preconfigure defaults
     allRules = false // do not activate every rule by default
-    config.setFrom("$projectDir/config/detekt.yml") // point to your custom config defining rules to run, overwriting default behavior
 }
 tasks {
     withType<Test> {

@@ -16,6 +16,15 @@
   3. `cd ../<type>-<name>`; if `../.env` exists, run `direnv allow .`.
   4. Verify baseline with `./gradlew test`; report failures and ask before proceeding.
 
+## Finishing a feature branch ("커밋 후 정리해줘")
+
+When the user asks to "commit and clean up" (e.g. "커밋 후 정리해줘") from a feature worktree, do all of the following in order:
+
+1. Commit the changes.
+2. Merge into `develop` with `--no-ff` (run from the `develop` worktree). If the merge fails or conflicts, stop and report — keep the branch and worktree untouched.
+3. Only after a successful merge, remove the feature worktree (`git worktree remove ../<type>-<name>`) and delete the local branch (`git branch -d <type>/<name>`).
+4. Do NOT push. Push only when the user asks separately.
+
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
