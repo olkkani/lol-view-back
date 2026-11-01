@@ -2,9 +2,7 @@ package io.olkkani.lolviewback.application.service
 
 import io.olkkani.lolviewback.adapter.inbound.web.dto.ExternalIdRequest
 import io.olkkani.lolviewback.adapter.inbound.web.dto.LeagueRequest
-import io.olkkani.lolviewback.adapter.inbound.web.dto.RecurrenceWindowRequest
 import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueExternalIdRepository
-import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueRecurrenceWindowRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.Provider
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.time.LocalDate
 
 /**
  * Exercises LeagueService.create against a real Postgres instance, because the
@@ -53,9 +50,8 @@ class LeagueServiceIntegrationTest {
         @Bean
         fun leagueService(
             leagueRepository: LeagueRepository,
-            leagueRecurrenceWindowRepository: LeagueRecurrenceWindowRepository,
             leagueExternalIdRepository: LeagueExternalIdRepository,
-        ) = LeagueService(leagueRepository, leagueRecurrenceWindowRepository, leagueExternalIdRepository)
+        ) = LeagueService(leagueRepository, leagueExternalIdRepository)
     }
 
     @Autowired
@@ -69,25 +65,15 @@ class LeagueServiceIntegrationTest {
             leagueName = "LCK Challengers",
             logoUrl = "url",
             logoBackdrop = null,
-            recurrenceWindows =
-                listOf(
-                    RecurrenceWindowRequest(
-                        label = "Spring",
-                        tieBreakPriority = 1,
-                        intervalYear = 1,
-                        startDate = LocalDate.of(2026, 1, 1),
-                    ),
-                ),
             externalIds = listOf(ExternalIdRequest(provider = Provider.LOLESPORTS, externalId = externalId)),
         )
 
     @Test
-    fun `create persists the league, its recurrence windows, and its external ids together`() {
+    fun `create persists the league and its external ids together`() {
         val result = leagueService.create(request("unique-${System.nanoTime()}"))
 
         val persisted = leagueRepository.findById(result.id)
         assertEquals(true, persisted.isPresent)
-        assertEquals(1, result.recurrenceWindows.size)
         assertEquals(1, result.externalIds.size)
     }
 
@@ -95,7 +81,7 @@ class LeagueServiceIntegrationTest {
     fun `create rolls back the whole league when two external ids collide on the same provider`() {
         // The unique constraint is on (entity_id, provider): both external ids below get the new
         // league's entity id, so the second save violates the constraint and must roll back the
-        // already-saved League row along with the first external id and the recurrence window.
+        // already-saved League row along with the first external id.
         val leagueName = "LCK Challengers Rollback ${System.nanoTime()}"
 
         assertThrows<DataIntegrityViolationException> {
@@ -115,13 +101,11 @@ class LeagueServiceIntegrationTest {
     }
 
     @Test
-    fun `getById reflects a league's persisted recurrence windows and external ids`() {
+    fun `getById reflects a league's persisted external ids`() {
         val created = leagueService.create(request("unique-${System.nanoTime()}"))
 
         val fetched = leagueService.getById(created.id)
 
-        assertEquals(1, fetched.recurrenceWindows.size)
-        assertEquals("Spring", fetched.recurrenceWindows[0].label)
         assertEquals(1, fetched.externalIds.size)
         assertFalse(fetched.externalIds[0].externalId.isBlank())
     }

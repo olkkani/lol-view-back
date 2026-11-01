@@ -24,18 +24,6 @@ VALUES
     (3006, 1006, 'LOLESPORTS', '116929044967296666'),
     (3007, 1007, 'LOLESPORTS', '117228885404001005');
 
-INSERT INTO "league_recurrence_windows" ("id", "label", "tie_break_priority", "league_id", "interval_year", "start_date")
-VALUES
-    (2001, 'LCK Split 1', 1, 1004, 1, '2026-01-03'),
-    (2002, 'LCK Split 2', 2, 1004, 1, '2026-03-31'),
-    (2003, 'LCK Split 3', 3, 1004, 1, '2026-07-28'),
-    (2004, 'MSI', 1, 1002, 1, '2026-06-27'),
-    (2005, '월드 챔피언십', 1, 1001, 1, '2025-11-09'),
-    (2006, 'First Stand', 1, 1003, 1, '2026-03-16'),
-    (2007, 'Esports World Cup', 1, 1005, 1, '2026-07-14'),
-    (2008, 'KeSPA Cup', 1, 1006, 1, '2026-07-19'),
-    (2009, 'asian_games', 1, 1007, 4, '2026-09-28');
-
 INSERT INTO "clubs" ("id", "is_active", "founded_date", "disbanded_date")
 VALUES
     (1000, true, '2020-01-01', NULL),

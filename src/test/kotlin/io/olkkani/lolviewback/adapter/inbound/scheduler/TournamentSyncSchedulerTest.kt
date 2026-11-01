@@ -11,15 +11,15 @@ class TournamentSyncSchedulerTest {
     @Test
     fun `invokes the sync service and does not propagate an exception`() {
         val service = mockk<TournamentSyncService>()
-        coEvery { service.syncDueTournaments() } throws RuntimeException("boom")
+        coEvery { service.syncNewTournaments() } throws RuntimeException("boom")
 
         val scheduler = TournamentSyncScheduler(service)
 
         // Must not throw — matching BracketSyncScheduler's try/catch-and-log
         // convention, since an uncaught exception here would kill the
         // scheduled task permanently in Spring's default TaskScheduler.
-        scheduler.syncDueTournaments()
+        scheduler.syncNewTournaments()
 
-        coVerify(exactly = 1) { service.syncDueTournaments() }
+        coVerify(exactly = 1) { service.syncNewTournaments() }
     }
 }
