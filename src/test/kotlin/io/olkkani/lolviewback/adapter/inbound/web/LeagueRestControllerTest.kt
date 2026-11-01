@@ -21,7 +21,6 @@ class LeagueRestControllerTest {
             logoUrl = "url",
             isActive = true,
             logoBackdrop = LogoBackdrop.DARK,
-            recurrenceWindows = emptyList(),
             externalIds = emptyList(),
         )
 

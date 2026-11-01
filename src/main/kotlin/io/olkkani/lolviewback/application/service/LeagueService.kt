@@ -5,18 +5,15 @@ import io.olkkani.lolviewback.adapter.inbound.web.dto.LeagueRequest
 import io.olkkani.lolviewback.adapter.inbound.web.dto.LeagueResponse
 import io.olkkani.lolviewback.adapter.inbound.web.dto.toResponse
 import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueExternalIdRepository
-import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueRecurrenceWindowRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.LeagueRepository
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.League
 import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LeagueExternalId
-import io.olkkani.lolviewback.adapter.outbound.persistence.entity.LeagueRecurrenceWindow
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class LeagueService(
     private val leagueRepository: LeagueRepository,
-    private val leagueRecurrenceWindowRepository: LeagueRecurrenceWindowRepository,
     private val leagueExternalIdRepository: LeagueExternalIdRepository,
 ) {
     @Transactional
@@ -30,19 +27,6 @@ class LeagueService(
                     logoBackdrop = request.logoBackdrop,
                 ),
             )
-
-        val recurrenceWindows =
-            request.recurrenceWindows.map { window ->
-                leagueRecurrenceWindowRepository.save(
-                    LeagueRecurrenceWindow(
-                        label = window.label,
-                        tieBreakPriority = window.tieBreakPriority,
-                        intervalYear = window.intervalYear,
-                        startDate = window.startDate,
-                        league = league,
-                    ),
-                )
-            }
 
         val externalIds =
             request.externalIds.map { externalId ->
@@ -58,29 +42,21 @@ class LeagueService(
                 )
             }
 
-        return league.toResponse(recurrenceWindows, externalIds)
+        return league.toResponse(externalIds)
     }
 
     fun getAll(): List<LeagueResponse> {
         val leagues = leagueRepository.findAll()
-        val windowsByLeagueId =
-            leagueRecurrenceWindowRepository.findByLeagueIn(leagues).groupBy { it.league.id }
         val externalIdsByLeagueId =
             leagueExternalIdRepository.findByEntityIdIn(leagues.map { it.id }).groupBy { it.entityId }
         return leagues.map { league ->
-            league.toResponse(
-                windowsByLeagueId[league.id].orEmpty(),
-                externalIdsByLeagueId[league.id].orEmpty(),
-            )
+            league.toResponse(externalIdsByLeagueId[league.id].orEmpty())
         }
     }
 
     fun getById(id: Long): LeagueResponse {
         val league = findOrThrow(id)
-        return league.toResponse(
-            leagueRecurrenceWindowRepository.findByLeague(league),
-            leagueExternalIdRepository.findByEntityId(id),
-        )
+        return league.toResponse(leagueExternalIdRepository.findByEntityId(id))
     }
 
     fun update(
@@ -92,10 +68,7 @@ class LeagueService(
         league.logoUrl = request.logoUrl
         league.logoBackdrop = request.logoBackdrop
         val saved = leagueRepository.save(league)
-        return saved.toResponse(
-            leagueRecurrenceWindowRepository.findByLeague(saved),
-            leagueExternalIdRepository.findByEntityId(id),
-        )
+        return saved.toResponse(leagueExternalIdRepository.findByEntityId(id))
     }
 
     fun delete(id: Long) {

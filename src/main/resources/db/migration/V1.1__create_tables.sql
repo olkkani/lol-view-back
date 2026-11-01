@@ -86,16 +86,6 @@ CREATE TABLE "match_sets"
 );
 
 
-CREATE TABLE "league_recurrence_windows"
-(
-    "id"                 BIGINT PRIMARY KEY,
-    "label"              varchar,
-    "tie_break_priority" integer,
-    "league_id"          BIGINT,
-    "interval_year"      integer,
-    "start_date"         date
-);
-
 CREATE TABLE "user_identities"
 (
     "id"               bigint PRIMARY KEY,
@@ -209,9 +199,6 @@ ALTER TABLE "match_sets"
 
 ALTER TABLE "match_sets"
     ADD FOREIGN KEY ("set_win_club_id") REFERENCES "clubs" ("id") DEFERRABLE;
-
-ALTER TABLE "league_recurrence_windows"
-    ADD FOREIGN KEY ("league_id") REFERENCES "leagues" ("id") DEFERRABLE;
 
 ALTER TABLE "user_identities"
     ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id") DEFERRABLE;

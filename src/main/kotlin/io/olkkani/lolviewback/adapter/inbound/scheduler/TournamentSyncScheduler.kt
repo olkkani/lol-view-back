@@ -12,12 +12,12 @@ class TournamentSyncScheduler(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Scheduled(cron = "0 0 0 * * MON")
-    fun syncDueTournaments() {
+    @Scheduled(cron = "0 0 0 1 * *")
+    fun syncNewTournaments() {
         log.info("Starting tournament sync")
         try {
             runBlocking {
-                tournamentSyncService.syncDueTournaments()
+                tournamentSyncService.syncNewTournaments()
             }
             log.info("Finished tournament sync")
         } catch (e: Exception) {
